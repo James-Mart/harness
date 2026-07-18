@@ -1,3 +1,4 @@
+import { containersOf } from "@/model/containers";
 import {
   admitHead,
   appendToReadySet,
@@ -7,7 +8,7 @@ import {
   isFixpoint,
   type ReadySet,
 } from "@/model/readySet";
-import type { ContainerNode, Harness, NodeId } from "@/model/types";
+import type { Harness, NodeId } from "@/model/types";
 import { randomTransitionMs, type RngState } from "@/sim/rng";
 import type { SimItem, SimScript, SimSpawn } from "@/sim/types";
 
@@ -49,12 +50,6 @@ export type CreateRunStateOptions = {
   /** Multiplier on 1–5s durations (>1 faster). */
   speed?: number;
 };
-
-function containersOf(harness: Harness): ContainerNode[] {
-  return harness.nodes.filter(
-    (node): node is ContainerNode => node.kind === "container",
-  );
-}
 
 function requireItem(script: SimScript, id: string): SimItem {
   const item = script.items[id];
@@ -351,4 +346,19 @@ export function pendingDurations(state: RunState): Record<string, number> {
     if (cursor.pending) out[id] = cursor.pending.durationMs;
   }
   return out;
+}
+
+/**
+ * Progress 0→1 of a pending cursor transition at `nowMs`.
+ * Co-located with `step` / `advanceTime` so overlay animation cannot diverge
+ * from landing semantics (`landsAtMs = start + durationMs`).
+ */
+export function cursorTransitionProgress(
+  pending: NonNullable<SimCursor["pending"]>,
+  nowMs: number,
+): number {
+  if (pending.durationMs <= 0) return 1;
+  const startMs = pending.landsAtMs - pending.durationMs;
+  const t = (nowMs - startMs) / pending.durationMs;
+  return Math.min(1, Math.max(0, t));
 }

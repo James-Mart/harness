@@ -1,77 +1,15 @@
-import type { HarnessFlowNode } from "@/components/canvas/flowTypes";
+import type { FlowGeometryNode } from "@/authoring/flowGeometry";
+import { nodeRect } from "@/authoring/flowGeometry";
 import { isAncestorOf } from "@/model/ancestry";
 import type { NodeId } from "@/model/types";
 
 /** Geometry fields used to resolve drop-target containment. */
-export type ContainmentFlowNode = Pick<
-  HarnessFlowNode,
-  | "id"
-  | "type"
-  | "parentId"
-  | "position"
-  | "width"
-  | "height"
-  | "measured"
-  | "style"
->;
+export type ContainmentFlowNode = FlowGeometryNode;
 
-type Rect = { x: number; y: number; width: number; height: number };
-
-function numericStyle(value: number | string | undefined): number | undefined {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const parsed = Number.parseFloat(value);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }
-  return undefined;
-}
-
-function nodeSize(node: ContainmentFlowNode): {
-  width: number;
-  height: number;
-} {
-  const width =
-    node.measured?.width ??
-    (typeof node.width === "number" ? node.width : undefined) ??
-    numericStyle(node.style?.width) ??
-    0;
-  const height =
-    node.measured?.height ??
-    (typeof node.height === "number" ? node.height : undefined) ??
-    numericStyle(node.style?.height) ??
-    0;
-  return { width, height };
-}
-
-function absolutePosition(
-  nodeId: string,
-  byId: Map<string, ContainmentFlowNode>,
-): { x: number; y: number } {
-  let x = 0;
-  let y = 0;
-  let current: ContainmentFlowNode | undefined = byId.get(nodeId);
-  const seen = new Set<string>();
-  while (current) {
-    if (seen.has(current.id)) break;
-    seen.add(current.id);
-    x += current.position.x;
-    y += current.position.y;
-    if (current.parentId === undefined) break;
-    current = byId.get(current.parentId);
-  }
-  return { x, y };
-}
-
-function nodeRect(
-  node: ContainmentFlowNode,
-  byId: Map<string, ContainmentFlowNode>,
-): Rect {
-  const { x, y } = absolutePosition(node.id, byId);
-  const { width, height } = nodeSize(node);
-  return { x, y, width, height };
-}
-
-function containsPoint(rect: Rect, point: { x: number; y: number }): boolean {
+function containsPoint(
+  rect: { x: number; y: number; width: number; height: number },
+  point: { x: number; y: number },
+): boolean {
   return (
     point.x >= rect.x &&
     point.x <= rect.x + rect.width &&

@@ -82,6 +82,7 @@ export {
   maxConcurrencyOf,
   type ReadySet,
 } from "@/model/readySet";
+export { containersOf } from "@/model/containers";
 export {
   advisoryCuesForContainer,
   appendEdgeId,

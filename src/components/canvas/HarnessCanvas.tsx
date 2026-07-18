@@ -17,6 +17,8 @@ import "@xyflow/react/dist/style.css";
 
 import type { HarnessFlowNode } from "@/components/canvas/flowTypes";
 import { harnessNodeTypes } from "@/components/canvas/nodeTypes";
+import { RunOverlay } from "@/components/canvas/RunOverlay";
+import type { RunState } from "@/sim";
 
 export type CanvasSelection = {
   nodeIds: string[];
@@ -37,6 +39,8 @@ type HarnessCanvasProps = {
   onInit?: OnInit<HarnessFlowNode, Edge>;
   /** When true, block drag / connect / delete (Run mode). */
   readOnly?: boolean;
+  /** Live mock run state; drives the Run-mode cursor overlay. */
+  runState?: RunState | null;
 };
 
 export function HarnessCanvas({
@@ -52,6 +56,7 @@ export function HarnessCanvas({
   onEdgesDelete,
   onInit,
   readOnly = false,
+  runState = null,
 }: HarnessCanvasProps) {
   const handleSelectionChange: OnSelectionChangeFunc = ({
     nodes: selectedNodes,
@@ -94,6 +99,9 @@ export function HarnessCanvas({
     >
       <Background gap={16} size={1} />
       <Controls showInteractive={false} />
+      {runState != null ? (
+        <RunOverlay runState={runState} nodes={nodes} />
+      ) : null}
     </ReactFlow>
   );
 }

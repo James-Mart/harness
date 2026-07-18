@@ -1,6 +1,7 @@
 export {
   advanceTime,
   createRunState,
+  cursorTransitionProgress,
   isRunFixpoint,
   isSettled,
   pendingDurations,

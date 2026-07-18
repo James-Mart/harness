@@ -271,6 +271,7 @@ export function EditorLayout({
             onNodesDelete={onNodesDelete}
             onEdgesDelete={onEdgesDelete}
             readOnly={readOnly}
+            runState={runState}
           />
         </section>
         <NodeInspector
