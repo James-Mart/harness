@@ -68,6 +68,7 @@ export function OptionalPositiveIntField({
   placeholder,
   value,
   onChange,
+  disabled = false,
 }: {
   label: string;
   id: string;
@@ -75,6 +76,7 @@ export function OptionalPositiveIntField({
   placeholder: string;
   value: number | undefined;
   onChange: (raw: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <FieldRow label={label} htmlFor={id}>
@@ -85,6 +87,7 @@ export function OptionalPositiveIntField({
         min={1}
         placeholder={placeholder}
         value={value ?? ""}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
       />
     </FieldRow>

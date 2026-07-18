@@ -16,15 +16,19 @@ type StructuralParamsProps = {
   onUpdateNode: (nodeId: string, update: NodeUpdate) => void;
   /** Live containers this leaf may append into (excludes the node itself). */
   appendTargets?: AppendTarget[];
+  /** When true, all edit controls are disabled (Run mode). */
+  readOnly?: boolean;
 };
 
 type UpdateProps = {
   onUpdateNode: (nodeId: string, update: NodeUpdate) => void;
+  readOnly: boolean;
 };
 
 function ContainerStructuralFields({
   node,
   onUpdateNode,
+  readOnly,
 }: UpdateProps & { node: ContainerNode }) {
   return (
     <>
@@ -33,6 +37,7 @@ function ContainerStructuralFields({
           id="inspector-field-source"
           data-testid="inspector-field-source"
           value={node.source.kind}
+          disabled={readOnly}
           onChange={(event) =>
             onUpdateNode(node.id, {
               field: "source",
@@ -50,6 +55,7 @@ function ContainerStructuralFields({
           id="inspector-field-concurrency"
           data-testid="inspector-field-concurrency"
           value={node.concurrency.kind}
+          disabled={readOnly}
           onChange={(event) =>
             onUpdateNode(node.id, {
               field: "concurrencyKind",
@@ -69,6 +75,7 @@ function ContainerStructuralFields({
           testId="inspector-field-max-concurrency"
           placeholder="∞"
           value={node.concurrency.maxConcurrency}
+          disabled={readOnly}
           onChange={(value) =>
             onUpdateNode(node.id, { field: "maxConcurrency", value })
           }
@@ -79,7 +86,7 @@ function ContainerStructuralFields({
         data-testid="inspector-field-end"
         label="Fixpoint end"
         checked={node.end?.kind === "fixpoint"}
-        disabled={node.source.kind !== "live"}
+        disabled={readOnly || node.source.kind !== "live"}
         onChange={(event) =>
           onUpdateNode(node.id, {
             field: "end",
@@ -95,6 +102,7 @@ function LeafStructuralFields({
   node,
   onUpdateNode,
   appendTargets,
+  readOnly,
 }: UpdateProps & {
   node: LeafNode;
   appendTargets: AppendTarget[];
@@ -114,6 +122,7 @@ function LeafStructuralFields({
           id="inspector-field-appends-to"
           data-testid="inspector-field-appends-to"
           value={node.appendsTo ?? ""}
+          disabled={readOnly}
           onChange={(event) =>
             onUpdateNode(node.id, {
               field: "appendsTo",
@@ -137,6 +146,7 @@ export function StructuralParams({
   node,
   onUpdateNode,
   appendTargets = [],
+  readOnly = false,
 }: StructuralParamsProps) {
   return (
     <section data-testid="inspector-structural" className="space-y-2.5">
@@ -149,6 +159,7 @@ export function StructuralParams({
           id="inspector-field-title"
           data-testid="inspector-field-title"
           value={node.title}
+          disabled={readOnly}
           onChange={(event) =>
             onUpdateNode(node.id, {
               field: "title",
@@ -172,12 +183,17 @@ export function StructuralParams({
       </dl>
 
       {node.kind === "container" ? (
-        <ContainerStructuralFields node={node} onUpdateNode={onUpdateNode} />
+        <ContainerStructuralFields
+          node={node}
+          onUpdateNode={onUpdateNode}
+          readOnly={readOnly}
+        />
       ) : (
         <LeafStructuralFields
           node={node}
           onUpdateNode={onUpdateNode}
           appendTargets={appendTargets}
+          readOnly={readOnly}
         />
       )}
     </section>

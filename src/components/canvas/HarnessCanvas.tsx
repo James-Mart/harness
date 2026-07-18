@@ -17,6 +17,8 @@ import "@xyflow/react/dist/style.css";
 
 import type { HarnessFlowNode } from "@/components/canvas/flowTypes";
 import { harnessNodeTypes } from "@/components/canvas/nodeTypes";
+import { RunOverlay } from "@/components/canvas/RunOverlay";
+import type { RunState } from "@/sim";
 
 export type CanvasSelection = {
   nodeIds: string[];
@@ -35,6 +37,10 @@ type HarnessCanvasProps = {
   onNodesDelete?: OnNodesDelete;
   onEdgesDelete?: OnEdgesDelete;
   onInit?: OnInit<HarnessFlowNode, Edge>;
+  /** When true, block drag / connect / delete (Run mode). */
+  readOnly?: boolean;
+  /** Live mock run state; drives the Run-mode cursor overlay. */
+  runState?: RunState | null;
 };
 
 export function HarnessCanvas({
@@ -49,6 +55,8 @@ export function HarnessCanvas({
   onNodesDelete,
   onEdgesDelete,
   onInit,
+  readOnly = false,
+  runState = null,
 }: HarnessCanvasProps) {
   const handleSelectionChange: OnSelectionChangeFunc = ({
     nodes: selectedNodes,
@@ -67,23 +75,23 @@ export function HarnessCanvas({
       edges={edges}
       nodeTypes={harnessNodeTypes}
       onInit={onInit}
-      onNodesChange={onNodesChange}
-      onNodeDragStart={onNodeDragStart}
-      onNodeDragStop={onNodeDragStop}
+      onNodesChange={readOnly ? undefined : onNodesChange}
+      onNodeDragStart={readOnly ? undefined : onNodeDragStart}
+      onNodeDragStop={readOnly ? undefined : onNodeDragStop}
       onEdgesChange={() => {
         /* Edges are derived from harness data wires / appendsTo. */
       }}
-      onConnect={onConnect}
+      onConnect={readOnly ? undefined : onConnect}
       isValidConnection={isValidConnection}
       onSelectionChange={handleSelectionChange}
-      onNodesDelete={onNodesDelete}
-      onEdgesDelete={onEdgesDelete}
-      deleteKeyCode={["Backspace", "Delete"]}
+      onNodesDelete={readOnly ? undefined : onNodesDelete}
+      onEdgesDelete={readOnly ? undefined : onEdgesDelete}
+      deleteKeyCode={readOnly ? null : ["Backspace", "Delete"]}
       fitView={nodes.length > 0}
-      nodesDraggable
-      nodesConnectable
+      nodesDraggable={!readOnly}
+      nodesConnectable={!readOnly}
       elementsSelectable
-      edgesFocusable
+      edgesFocusable={!readOnly}
       connectionLineType={ConnectionLineType.Bezier}
       connectionLineStyle={{ strokeWidth: 2 }}
       defaultEdgeOptions={{ type: "default" }}
@@ -91,6 +99,9 @@ export function HarnessCanvas({
     >
       <Background gap={16} size={1} />
       <Controls showInteractive={false} />
+      {runState != null ? (
+        <RunOverlay runState={runState} nodes={nodes} />
+      ) : null}
     </ReactFlow>
   );
 }

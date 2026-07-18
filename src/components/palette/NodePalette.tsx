@@ -8,9 +8,17 @@ import type { CatalogType } from "@/model/catalog";
 type NodePaletteProps = {
   groups: PaletteGroup[];
   onAddCatalogNode?: (type: CatalogType) => void;
+  /** When true, block add / drag (Run mode). */
+  readOnly?: boolean;
 };
 
-export function NodePalette({ groups, onAddCatalogNode }: NodePaletteProps) {
+export function NodePalette({
+  groups,
+  onAddCatalogNode,
+  readOnly = false,
+}: NodePaletteProps) {
+  const canAdd = !readOnly && onAddCatalogNode !== undefined;
+
   return (
     <EditorSidebar title="Node palette" side="left" data-testid="node-palette">
       <Input
@@ -31,13 +39,17 @@ export function NodePalette({ groups, onAddCatalogNode }: NodePaletteProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  draggable={onAddCatalogNode !== undefined}
+                  draggable={canAdd}
+                  disabled={!canAdd}
                   className="w-full cursor-grab justify-start active:cursor-grabbing"
                   data-catalog-type={item.type}
                   data-testid={`palette-item-${item.type}`}
-                  onClick={() => onAddCatalogNode?.(item.type)}
+                  onClick={() => {
+                    if (!canAdd) return;
+                    onAddCatalogNode?.(item.type);
+                  }}
                   onDragStart={(event) => {
-                    if (!onAddCatalogNode) return;
+                    if (!canAdd) return;
                     setCatalogDragData(event.dataTransfer, item.type);
                   }}
                 >

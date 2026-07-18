@@ -29,6 +29,8 @@ type NodeInspectorProps = {
   onDeleteEdge?: (edgeId: string) => void;
   /** Live containers a leaf may append into. */
   appendTargets?: AppendTarget[];
+  /** When true, disable edits and hide delete controls (Run mode). */
+  readOnly?: boolean;
 };
 
 const EDGE_KIND_LABEL: Record<InspectorEdgeView["edgeKind"], string> = {
@@ -49,8 +51,10 @@ export function NodeInspector({
   onUpdateRunConfig,
   onDeleteEdge,
   appendTargets,
+  readOnly = false,
 }: NodeInspectorProps) {
   const selectedNode = target?.kind === "node" ? target.node : null;
+  const canEdit = !readOnly;
 
   return (
     <EditorSidebar title="Inspector" side="right" data-testid="node-inspector">
@@ -70,9 +74,10 @@ export function NodeInspector({
               node={target.node}
               onUpdateNode={onUpdateNode ?? (() => undefined)}
               appendTargets={appendTargets}
+              readOnly={readOnly}
             />
           </InspectorCard>
-          {onDeleteNode ? (
+          {canEdit && onDeleteNode ? (
             <Button
               type="button"
               variant="destructive"
@@ -116,7 +121,7 @@ export function NodeInspector({
               ) : null}
             </dl>
           </InspectorCard>
-          {onDeleteEdge ? (
+          {canEdit && onDeleteEdge ? (
             <Button
               type="button"
               variant="destructive"
@@ -154,6 +159,7 @@ export function NodeInspector({
             runConfig={runConfig}
             selectedNode={selectedNode}
             onUpdateRunConfig={onUpdateRunConfig}
+            readOnly={readOnly}
           />
         </InspectorCard>
       ) : null}
