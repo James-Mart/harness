@@ -1,7 +1,9 @@
 import { MarkerType, type Edge as FlowEdge } from "@xyflow/react";
 
+import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import type {
   ContainerFlowNode,
+  HarnessBoundaryFlowNode,
   HarnessFlowNode,
   LeafFlowNode,
 } from "@/components/canvas/flowTypes";
@@ -39,6 +41,44 @@ function leafSize(ports: readonly Port[], execOutCount: number): Size {
   };
 }
 
+/** Child content size before header/pad chrome — vertical or horizontal. */
+function aggregateChildContent(
+  childSizes: Size[],
+  axis: "vertical" | "horizontal",
+): Size {
+  if (childSizes.length === 0) {
+    return leafSize([], 1);
+  }
+  if (axis === "vertical") {
+    return {
+      width: Math.max(...childSizes.map((size) => size.width)),
+      height:
+        childSizes.reduce((sum, size) => sum + size.height, 0) +
+        FLOW_LAYOUT.childGap * (childSizes.length - 1),
+    };
+  }
+  return {
+    width:
+      childSizes.reduce((sum, size) => sum + size.width, 0) +
+      FLOW_LAYOUT.topLevelGap * (childSizes.length - 1),
+    height: Math.max(...childSizes.map((size) => size.height)),
+  };
+}
+
+/** Wrap body content with container/harness header + padding chrome. */
+function wrapWithContainerChrome(content: Size): Size {
+  return {
+    width: Math.max(
+      FLOW_LAYOUT.containerMinWidth,
+      content.width + FLOW_LAYOUT.containerPadX * 2,
+    ),
+    height:
+      FLOW_LAYOUT.containerHeaderHeight +
+      FLOW_LAYOUT.containerPadY * 2 +
+      content.height,
+  };
+}
+
 /** Bottom-up size cache — one walk, reused by the position pass. */
 function measureTree(
   harness: Harness,
@@ -56,37 +96,19 @@ function measureTree(
   }
 
   const kids = childrenOf(harness.nodes, node.id);
-  if (kids.length === 0) {
-    const emptyLeaf = leafSize([], 1);
-    const size = {
-      width: FLOW_LAYOUT.containerMinWidth,
-      height:
-        FLOW_LAYOUT.containerHeaderHeight +
-        FLOW_LAYOUT.containerPadY * 2 +
-        emptyLeaf.height,
-    };
-    sizes.set(node.id, size);
-    return size;
-  }
-
   const childSizes = kids.map((child) => measureTree(harness, child, sizes));
-  const contentWidth = Math.max(...childSizes.map((size) => size.width));
-  const contentHeight =
-    childSizes.reduce((sum, size) => sum + size.height, 0) +
-    FLOW_LAYOUT.childGap * (kids.length - 1);
-
-  const size = {
-    width: Math.max(
-      FLOW_LAYOUT.containerMinWidth,
-      contentWidth + FLOW_LAYOUT.containerPadX * 2,
-    ),
-    height:
-      FLOW_LAYOUT.containerHeaderHeight +
-      FLOW_LAYOUT.containerPadY * 2 +
-      contentHeight,
-  };
+  const size = wrapWithContainerChrome(
+    aggregateChildContent(childSizes, "vertical"),
+  );
   sizes.set(node.id, size);
   return size;
+}
+
+/** Size of the harness shell wrapping top-level nodes left-to-right. */
+function measureHarnessShell(rootSizes: Size[]): Size {
+  return wrapWithContainerChrome(
+    aggregateChildContent(rootSizes, "horizontal"),
+  );
 }
 
 function toLeafFlowNode(
@@ -139,6 +161,22 @@ function toContainerFlowNode(
   };
 }
 
+function toHarnessBoundaryFlowNode(
+  harness: Harness,
+  size: Size,
+): HarnessBoundaryFlowNode {
+  return {
+    id: HARNESS_FLOW_NODE_ID,
+    type: "harness",
+    position: { x: 0, y: 0 },
+    data: {
+      title: harness.title,
+      ports: harness.boundary,
+    },
+    style: { width: size.width, height: size.height },
+  };
+}
+
 function positionSubtree(
   harness: Harness,
   node: HarnessNode,
@@ -180,24 +218,26 @@ function positionSubtree(
 
 /**
  * Convert a harness graph into React Flow nodes with parent/child
- * containment. Positions are a simple left-to-right / nested stack
- * layout for static viewing.
+ * containment. The harness itself is the outer boundary node; top-level
+ * graph nodes sit in its body left-to-right.
  */
 export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
   const roots = harness.nodes.filter((node) => node.parentId === undefined);
   const sizes = new Map<NodeId, Size>();
-  for (const root of roots) {
-    measureTree(harness, root, sizes);
-  }
+  const rootSizes = roots.map((root) => measureTree(harness, root, sizes));
+  const shellSize = measureHarnessShell(rootSizes);
 
-  const out: HarnessFlowNode[] = [];
-  let x = 0;
+  const out: HarnessFlowNode[] = [
+    toHarnessBoundaryFlowNode(harness, shellSize),
+  ];
+  let x = FLOW_LAYOUT.containerPadX;
+  const y = FLOW_LAYOUT.containerHeaderHeight + FLOW_LAYOUT.containerPadY;
   for (const root of roots) {
     const size = sizes.get(root.id);
     if (!size) {
       throw new Error(`Missing measured size for node ${root.id}`);
     }
-    positionSubtree(harness, root, { x, y: 0 }, undefined, sizes, out);
+    positionSubtree(harness, root, { x, y }, HARNESS_FLOW_NODE_ID, sizes, out);
     x += size.width + FLOW_LAYOUT.topLevelGap;
   }
 

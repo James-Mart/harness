@@ -1,9 +1,30 @@
 import { instantiateFromCatalog } from "@/model/instantiate";
+import { mockSchema } from "@/model/schema";
 import {
   CURRENT_ITEM_PORT_ID,
   EMPTY_RUN_CONFIG,
   type Harness,
+  type Port,
 } from "@/model/types";
+
+/** Typed outer signature for the base seed (harness-as-node). */
+function baseSeedBoundary(): Port[] {
+  return [
+    {
+      id: "tasks",
+      name: "tasks",
+      direction: "in",
+      schema: mockSchema("taskList"),
+      required: true,
+    },
+    {
+      id: "summary",
+      name: "summary",
+      direction: "out",
+      schema: mockSchema("string"),
+    },
+  ];
+}
 
 /**
  * Minimal base harness: list source → snapshot ForEach → implementor,
@@ -20,7 +41,7 @@ export function createBaseSeedHarness(): Harness {
   return {
     id: "base-seed",
     title: "Base seed harness",
-    boundary: [],
+    boundary: baseSeedBoundary(),
     nodes: [source, loop, worker],
     edges: [
       {

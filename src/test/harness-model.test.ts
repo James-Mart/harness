@@ -23,7 +23,21 @@ describe("harness model", () => {
     expect(harness.edges.filter((edge) => edge.kind === "exec")).toHaveLength(
       2,
     );
-    expect(harness.boundary).toEqual([]);
+    expect(harness.boundary).toEqual([
+      {
+        id: "tasks",
+        name: "tasks",
+        direction: "in",
+        schema: mockSchema("taskList"),
+        required: true,
+      },
+      {
+        id: "summary",
+        name: "summary",
+        direction: "out",
+        schema: mockSchema("string"),
+      },
+    ]);
     expect(harness.runConfig).toEqual({ perContainer: {}, gates: {} });
 
     const source = harness.nodes.find((node) => node.id === "source");

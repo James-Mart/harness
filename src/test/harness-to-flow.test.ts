@@ -4,6 +4,7 @@ import {
   harnessToFlowEdges,
   harnessToFlowNodes,
 } from "@/components/canvas/harnessToFlow";
+import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import { FLOW_LAYOUT } from "@/components/canvas/layoutTokens";
 import {
   CURRENT_ITEM_PORT_ID,
@@ -22,57 +23,79 @@ describe("harnessToFlowNodes", () => {
     const harness = createBaseSeedHarness();
     const nodes = harnessToFlowNodes(harness);
 
-    expect(nodes.map((node) => node.id)).toEqual(["source", "loop", "worker"]);
+    expect(nodes.map((node) => node.id)).toEqual([
+      HARNESS_FLOW_NODE_ID,
+      "source",
+      "loop",
+      "worker",
+    ]);
 
+    const shell = nodes.find((node) => node.id === HARNESS_FLOW_NODE_ID);
     const source = nodes.find((node) => node.id === "source");
     const loop = nodes.find((node) => node.id === "loop");
     const worker = nodes.find((node) => node.id === "worker");
 
+    expect(shell?.type).toBe("harness");
+    expect(shell?.parentId).toBeUndefined();
+    expect(shell?.data).toEqual({
+      title: harness.title,
+      ports: harness.boundary,
+    });
+    expect(shell?.style?.width).toBeGreaterThan(0);
+    expect(shell?.style?.height).toBeGreaterThan(0);
+
     expect(source?.type).toBe("leaf");
-    expect(source?.parentId).toBeUndefined();
-    expect(source?.data.title).toBe("List source");
-    expect(source?.data.catalogType).toBe("listSource");
-    expect(source?.data.execOutBranches).toEqual([undefined]);
-    expect(source?.data.ports).toEqual(
+    if (source?.type !== "leaf") throw new Error("expected leaf source");
+    expect(source.parentId).toBe(HARNESS_FLOW_NODE_ID);
+    expect(source.extent).toBe("parent");
+    expect(source.data.title).toBe("List source");
+    expect(source.data.catalogType).toBe("listSource");
+    expect(source.data.execOutBranches).toEqual([undefined]);
+    expect(source.data.ports).toEqual(
       harness.nodes.find((node) => node.id === "source")!.ports,
     );
-    expect(source?.data.ports.map((port) => port.id)).toEqual(["items"]);
+    expect(source.data.ports.map((port) => port.id)).toEqual(["items"]);
+    expect(source.position).toEqual({
+      x: FLOW_LAYOUT.containerPadX,
+      y: FLOW_LAYOUT.containerHeaderHeight + FLOW_LAYOUT.containerPadY,
+    });
 
     expect(loop?.type).toBe("container");
-    expect(loop?.parentId).toBeUndefined();
-    expect(loop?.data).toMatchObject({
+    if (loop?.type !== "container") throw new Error("expected container loop");
+    expect(loop.parentId).toBe(HARNESS_FLOW_NODE_ID);
+    expect(loop.extent).toBe("parent");
+    expect(loop.data).toMatchObject({
       title: "For each",
       catalogType: "foreach",
       iterablePortId: "items",
       sourceKind: "snapshot",
     });
-    expect(loop?.data.execOutBranches).toEqual([undefined]);
-    expect(loop?.data.ports.map((port) => port.id)).toEqual([
+    expect(loop.data.execOutBranches).toEqual([undefined]);
+    expect(loop.data.ports.map((port) => port.id)).toEqual([
       "items",
       CURRENT_ITEM_PORT_ID,
     ]);
     expect(
-      loop?.data.ports.find((port) => port.id === CURRENT_ITEM_PORT_ID)?.schema,
+      loop.data.ports.find((port) => port.id === CURRENT_ITEM_PORT_ID)?.schema,
     ).toEqual(mockSchema("task"));
-    expect(loop?.style?.width).toBeGreaterThan(0);
-    expect(loop?.style?.height).toBeGreaterThan(0);
+    expect(loop.style?.width).toBeGreaterThan(0);
+    expect(loop.style?.height).toBeGreaterThan(0);
 
     expect(worker?.type).toBe("leaf");
-    expect(worker?.parentId).toBe("loop");
-    expect(worker?.extent).toBe("parent");
-    expect(worker?.data.title).toBe("Implementor");
-    expect(worker?.data.catalogType).toBe("implementor");
-    expect(worker?.data.ports.map((port) => port.id)).toEqual([
+    if (worker?.type !== "leaf") throw new Error("expected leaf worker");
+    expect(worker.parentId).toBe("loop");
+    expect(worker.extent).toBe("parent");
+    expect(worker.data.title).toBe("Implementor");
+    expect(worker.data.catalogType).toBe("implementor");
+    expect(worker.data.ports.map((port) => port.id)).toEqual([
       "task",
       "result",
     ]);
-    expect(worker?.position).toEqual({
+    expect(worker.position).toEqual({
       x: FLOW_LAYOUT.containerPadX,
       y: FLOW_LAYOUT.containerHeaderHeight + FLOW_LAYOUT.containerPadY,
     });
-    expect(worker?.style?.height).toBeGreaterThan(
-      FLOW_LAYOUT.leafMinHeight - 1,
-    );
+    expect(worker.style?.height).toBeGreaterThan(FLOW_LAYOUT.leafMinHeight - 1);
   });
 
   it("maps branching seed gate outs from wired exec edges", () => {
@@ -80,10 +103,9 @@ describe("harnessToFlowNodes", () => {
     const nodes = harnessToFlowNodes(harness);
     const gate = nodes.find((node) => node.id === "gate");
     expect(gate?.type).toBe("leaf");
-    expect(gate?.data.execOutBranches).toEqual(["ok", "deny"]);
-    if (gate?.type === "leaf") {
-      expect(gate.data.isGate).toBe(true);
-    }
+    if (gate?.type !== "leaf") throw new Error("expected leaf gate");
+    expect(gate.data.execOutBranches).toEqual(["ok", "deny"]);
+    expect(gate.data.isGate).toBe(true);
   });
 });
 

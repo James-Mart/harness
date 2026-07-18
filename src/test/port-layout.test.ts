@@ -113,6 +113,17 @@ describe("port layout helpers", () => {
     }
   });
 
+  it("uses the full header band when execOutCount is 0", () => {
+    for (const count of [1, 2]) {
+      const tops = containerHeaderPortHandleTops(count, 0);
+      expect(tops).toHaveLength(count);
+      for (const top of tops) {
+        expect(top).toBeGreaterThan(0);
+        expect(top).toBeLessThan(FLOW_LAYOUT.containerHeaderHeight);
+      }
+    }
+  });
+
   it("splits ports by direction", () => {
     const { inputs, outputs } = portsByDirection([
       {

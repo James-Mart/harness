@@ -92,15 +92,16 @@ export function leafPortHandleTops(
 }
 
 /**
- * Container data ports live in the header band below the exec stack
- * (header-local Y).
+ * Container / harness-boundary data ports in the header band
+ * (header-local Y). Pass `execOutCount === 0` for no exec stack
+ * (harness boundary).
  */
 export function containerHeaderPortHandleTops(
   count: number,
   execOutCount: number = 1,
 ): number[] {
   const pad = FLOW_LAYOUT.containerHeaderPortPadY;
-  const execH = execBandHeight(execOutCount);
+  const execH = execOutCount > 0 ? execBandHeight(execOutCount) : 0;
   const bandTop = pad + execH;
   const bandHeight = Math.max(
     FLOW_LAYOUT.portRowHeight,
