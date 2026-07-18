@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type DragEvent } from "react";
 import type { Connection, IsValidConnection } from "@xyflow/react";
 
+import { readCatalogDragType } from "@/authoring/catalogDrag";
 import { connectionEndpoints } from "@/components/canvas/connectionAdapter";
 import { HarnessCanvas } from "@/components/canvas/HarnessCanvas";
 import {
@@ -11,9 +12,11 @@ import { NodeInspector } from "@/components/inspector/NodeInspector";
 import { NodePalette } from "@/components/palette/NodePalette";
 import { CATALOG_PALETTE_GROUPS } from "@/components/palette/catalogPalette";
 import {
+  addCatalogNode,
   canConnectDataWire,
   connectDataWire,
   createBaseSeedHarness,
+  type CatalogType,
   type Harness,
 } from "@/model";
 
@@ -57,13 +60,39 @@ export function EditorLayout({ initialHarness }: EditorLayoutProps = {}) {
     });
   }, []);
 
+  const onAddCatalogNode = useCallback((type: CatalogType) => {
+    setHarness((current) => addCatalogNode(current, type));
+  }, []);
+
+  const onCanvasDragOver = useCallback((event: DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }, []);
+
+  const onCanvasDrop = useCallback(
+    (event: DragEvent) => {
+      event.preventDefault();
+      const type = readCatalogDragType(event.dataTransfer);
+      if (type) onAddCatalogNode(type);
+    },
+    [onAddCatalogNode],
+  );
+
   return (
     <div
       className="grid h-full min-h-0 grid-cols-[14rem_1fr_16rem]"
       data-testid="editor-layout"
     >
-      <NodePalette groups={CATALOG_PALETTE_GROUPS} />
-      <section className="relative min-h-0 min-w-0" data-testid="editor-canvas">
+      <NodePalette
+        groups={CATALOG_PALETTE_GROUPS}
+        onAddCatalogNode={onAddCatalogNode}
+      />
+      <section
+        className="relative min-h-0 min-w-0"
+        data-testid="editor-canvas"
+        onDragOver={onCanvasDragOver}
+        onDrop={onCanvasDrop}
+      >
         <HarnessCanvas
           nodes={nodes}
           edges={flowEdges}

@@ -14,6 +14,7 @@ export {
   type InstantiateOptions,
   type InstantiatedNode,
 } from "@/model/instantiate";
+export { addCatalogNode } from "@/model/addNode";
 export {
   MOCK_SCHEMAS,
   itemSchemaOf,
