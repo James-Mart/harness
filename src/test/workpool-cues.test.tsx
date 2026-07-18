@@ -41,7 +41,7 @@ describe("work-pool advisory cue mapping + render", () => {
   it("grows container layout by cue row height when cues are present", () => {
     const cueHeader = containerChromeHeaderHeight({ hasAdvisoryCues: true });
     const baseHeader = containerChromeHeaderHeight();
-    expect(cueHeader - baseHeader).toBe(FLOW_LAYOUT.containerCueRowHeight);
+    expect(cueHeader - baseHeader).toBe(FLOW_LAYOUT.advisoryCueRowHeight);
 
     const demoNodes = harnessToFlowNodes(createWorkPoolCueDemoHarness());
     const seedNodes = harnessToFlowNodes(createWorkPoolSeedHarness());
@@ -57,7 +57,7 @@ describe("work-pool advisory cue mapping + render", () => {
 
     // Same single fan-out child shape: cue chrome is the only height delta.
     expect(Number(noFixpoint.style?.height) - Number(pool.style?.height)).toBe(
-      FLOW_LAYOUT.containerCueRowHeight,
+      FLOW_LAYOUT.advisoryCueRowHeight,
     );
     expect(fanOut?.position.y).toBe(cueHeader + FLOW_LAYOUT.containerPadY);
   });

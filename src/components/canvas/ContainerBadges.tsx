@@ -1,12 +1,9 @@
 import type { ReactNode } from "react";
 
-import {
-  advisoryCueLabel,
-  advisoryCueTestId,
-  concurrencyBadgeLabel,
-} from "@/components/canvas/workpoolVisuals";
+import { AdvisoryCueBadges } from "@/components/canvas/AdvisoryCueBadges";
+import { concurrencyBadgeLabel } from "@/components/canvas/workpoolVisuals";
 import { cn } from "@/lib/utils";
-import type { WorkPoolAdvisoryCue } from "@/model/workpoolGraph";
+import type { AdvisoryCue } from "@/model/advisoryCueTypes";
 import type { Concurrency, EndCondition } from "@/model/types";
 
 type ContainerBadgesProps = {
@@ -14,7 +11,7 @@ type ContainerBadgesProps = {
   concurrency: Concurrency;
   end?: EndCondition;
   hasFanOut: boolean;
-  advisoryCues?: readonly WorkPoolAdvisoryCue[];
+  advisoryCues?: readonly AdvisoryCue[];
 };
 
 function Badge({
@@ -22,27 +19,22 @@ function Badge({
   testId,
   emphasis = false,
   sourceKind,
-  advisory = false,
 }: {
   children: ReactNode;
   testId: string;
   emphasis?: boolean;
   sourceKind?: "snapshot" | "live";
-  advisory?: boolean;
 }) {
   return (
     <span
       className={cn(
         "shrink-0 rounded px-1.5 py-0.5 text-[0.6rem] leading-none font-medium tracking-wide uppercase",
-        advisory
-          ? "border border-amber-600/40 bg-amber-500/15 text-amber-900"
-          : emphasis
-            ? "bg-foreground text-background"
-            : "bg-muted text-muted-foreground border-border border",
+        emphasis
+          ? "bg-foreground text-background"
+          : "bg-muted text-muted-foreground border-border border",
       )}
       data-testid={testId}
       {...(sourceKind !== undefined ? { "data-source-kind": sourceKind } : {})}
-      {...(advisory ? { "data-advisory": "true" } : {})}
     >
       {children}
     </span>
@@ -77,18 +69,7 @@ export function ContainerBadges({
           <Badge testId="fan-out-target-marker">fan-out</Badge>
         ) : null}
       </div>
-      {advisoryCues.length > 0 ? (
-        <div
-          className="mt-1 flex flex-nowrap gap-1 overflow-hidden"
-          data-testid="advisory-cues"
-        >
-          {advisoryCues.map((cue) => (
-            <Badge key={cue} testId={advisoryCueTestId(cue)} advisory>
-              {advisoryCueLabel(cue)}
-            </Badge>
-          ))}
-        </div>
-      ) : null}
+      <AdvisoryCueBadges cues={advisoryCues} />
     </>
   );
 }

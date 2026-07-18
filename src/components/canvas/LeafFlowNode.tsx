@@ -1,5 +1,6 @@
 import { type NodeProps } from "@xyflow/react";
 
+import { AdvisoryCueBadges } from "@/components/canvas/AdvisoryCueBadges";
 import { ExecHandles } from "@/components/canvas/ExecHandles";
 import type { LeafFlowNode } from "@/components/canvas/flowTypes";
 import {
@@ -17,8 +18,12 @@ export function LeafFlowNodeView({
 }: NodeProps<LeafFlowNode>) {
   const execOutCount = Math.max(1, data.execOutBranches.length);
   const hasFanOut = data.appendsTo !== undefined;
+  const hasAdvisoryCues = data.advisoryCues.length > 0;
   const gateOff = data.isGate === true && data.gateEnabled === false;
-  const layoutOptions = { hasFanOutMarker: hasFanOut };
+  const layoutOptions = {
+    hasFanOutMarker: hasFanOut,
+    hasAdvisoryCues,
+  };
   const headerHeight = leafTitleHeaderHeight(layoutOptions);
   const dataHandleTops = (count: number) =>
     leafPortHandleTops(count, execOutCount, layoutOptions);
@@ -60,6 +65,7 @@ export function LeafFlowNodeView({
             append → {data.appendsToTitle ?? data.appendsTo}
           </p>
         ) : null}
+        <AdvisoryCueBadges cues={data.advisoryCues} />
       </div>
       <ExecHandles branches={data.execOutBranches} bandTop={headerHeight} />
       <NodePortHandles ports={data.ports} handleTops={dataHandleTops} />

@@ -3,6 +3,7 @@ import {
   createBranchingSeedHarness,
   createEunomioSeedHarness,
   createTrackerSeedHarness,
+  createWiringCueDemoHarness,
   createWorkPoolCueDemoHarness,
   createWorkPoolSeedHarness,
   type Harness,
@@ -43,6 +44,11 @@ export function readHarnessBootstrap(
 
   const seed = new URLSearchParams(search).get("seed");
   switch (seed) {
+    case "wiring-cues":
+      return {
+        demoHarness: createWiringCueDemoHarness(),
+        seedKey: "tracker",
+      };
     case "workpool-cues":
       return {
         demoHarness: createWorkPoolCueDemoHarness(),

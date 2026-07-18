@@ -101,6 +101,45 @@ export function createWorkPoolSeedHarness(): Harness {
 }
 
 /**
+ * Graph that intentionally trips wiring advisory cues: an unwired required
+ * input, and an input with two data wires (one-wire-per-input violation).
+ * Used by cue detection/render tests.
+ */
+export function createWiringCueDemoHarness(): Harness {
+  const sourceA = instantiateFromCatalog("listSource", { id: "sourceA" });
+  const sourceB = instantiateFromCatalog("listSource", { id: "sourceB" });
+  const multiWire = instantiateFromCatalog("foreach", {
+    id: "multiWire",
+    title: "Multi-wire foreach",
+  });
+  const unwired = instantiateFromCatalog("implementor", {
+    id: "unwired",
+    title: "Unwired implementor",
+  });
+
+  return {
+    id: "wiring-cue-demo",
+    title: "Wiring cue demo",
+    boundary: baseSeedBoundary(),
+    nodes: [sourceA, sourceB, multiWire, unwired],
+    edges: [
+      {
+        kind: "data",
+        from: { node: sourceA.id, port: "items" },
+        to: { node: multiWire.id, port: multiWire.iterablePortId },
+      },
+      {
+        kind: "data",
+        from: { node: sourceB.id, port: "items" },
+        to: { node: multiWire.id, port: multiWire.iterablePortId },
+      },
+      { kind: "exec", from: sourceA.id, to: multiWire.id },
+    ],
+    runConfig: structuredClone(EMPTY_RUN_CONFIG),
+  };
+}
+
+/**
  * Live work-pools that intentionally trip advisory cues: one with no
  * appender, one missing a fixpoint end. Used by cue detection/render tests.
  */

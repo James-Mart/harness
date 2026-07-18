@@ -49,6 +49,7 @@ export {
   createBranchingSeedHarness,
   createEunomioSeedHarness,
   createTrackerSeedHarness,
+  createWiringCueDemoHarness,
   createWorkPoolCueDemoHarness,
   createWorkPoolSeedHarness,
   EUNOMIO_HARNESS_ID,
@@ -56,6 +57,17 @@ export {
   TRACKER_HARNESS_ID,
   TRACKER_NODE_IDS,
 } from "@/model/seed";
+export {
+  type AdvisoryCue,
+  type WiringAdvisoryCue,
+  type WorkPoolAdvisoryCue,
+} from "@/model/advisoryCueTypes";
+export {
+  advisoryCuesForNode,
+  multiWireInputs,
+  unwiredRequiredInputs,
+  wiringAdvisoryCues,
+} from "@/model/validationCues";
 export {
   CURRENT_ITEM_PORT_ID,
   EMPTY_RUN_CONFIG,
@@ -97,7 +109,6 @@ export {
   nodesAppendingTo,
   workPoolAdvisoryCues,
   workPoolsMissingFixpoint,
-  type WorkPoolAdvisoryCue,
 } from "@/model/workpoolGraph";
 export {
   canConnectDataWire,

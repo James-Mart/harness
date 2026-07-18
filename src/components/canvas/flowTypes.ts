@@ -1,9 +1,9 @@
 import type { Edge, Node } from "@xyflow/react";
 
-import type { WorkPoolAdvisoryCue } from "@/model/workpoolGraph";
+import type { AdvisoryCue } from "@/model/advisoryCueTypes";
 import type { Concurrency, EndCondition, Port } from "@/model/types";
 
-export type { WorkPoolAdvisoryCue };
+export type { AdvisoryCue };
 
 export type LeafFlowData = {
   title: string;
@@ -18,6 +18,8 @@ export type LeafFlowData = {
   appendsTo?: string;
   /** Display title of the append target (for the fan-out marker). */
   appendsToTitle?: string;
+  /** Advisory (non-blocking) wiring cues for this leaf. */
+  advisoryCues: readonly AdvisoryCue[];
 };
 
 export type ContainerFlowData = {
@@ -32,8 +34,8 @@ export type ContainerFlowData = {
   end?: EndCondition;
   /** True when a body leaf declares `appendsTo` this container. */
   hasFanOut: boolean;
-  /** Advisory (non-blocking) work-pool cues for this container. */
-  advisoryCues: WorkPoolAdvisoryCue[];
+  /** Advisory (non-blocking) cues for this container (wiring + work-pool). */
+  advisoryCues: readonly AdvisoryCue[];
 };
 
 /** Outer harness shell — boundary signature ports only. */
