@@ -21,5 +21,10 @@ export {
   type Rng,
   type RngState,
 } from "@/sim/rng";
-export { baseSeedSimScript, workPoolSeedSimScript } from "@/sim/scripts";
+export {
+  baseSeedSimScript,
+  emptySimScript,
+  scriptForHarness,
+  workPoolSeedSimScript,
+} from "@/sim/scripts";
 export type { SimItem, SimPathStep, SimScript, SimSpawn } from "@/sim/types";

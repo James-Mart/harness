@@ -1,3 +1,4 @@
+import type { Harness } from "@/model/types";
 import type { SimScript } from "@/sim/types";
 
 /**
@@ -82,3 +83,22 @@ export const workPoolSeedSimScript: SimScript = {
     },
   },
 };
+
+/** Empty script — Run mode with no known seed script reaches fixpoint immediately. */
+export const emptySimScript: SimScript = { roots: [], items: {} };
+
+/**
+ * Pick the deterministic mock script for a known seed harness id.
+ * Unknown harnesses get {@link emptySimScript}.
+ */
+export function scriptForHarness(harness: Harness): SimScript {
+  switch (harness.id) {
+    case "base-seed":
+    case "branching-seed":
+      return baseSeedSimScript;
+    case "workpool-seed":
+      return workPoolSeedSimScript;
+    default:
+      return emptySimScript;
+  }
+}

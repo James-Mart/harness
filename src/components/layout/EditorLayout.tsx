@@ -10,6 +10,10 @@ import type {
 import { useCanvasSelection } from "@/authoring/useCanvasSelection";
 import { useContainmentDragDraft } from "@/authoring/useContainmentDragDraft";
 import { useFlowPlacement } from "@/authoring/useFlowPlacement";
+import {
+  useRunSimulation,
+  type EditorMode,
+} from "@/authoring/useRunSimulation";
 import { connectionEndpoints } from "@/components/canvas/connectionAdapter";
 import { flowEdgeToInspectorView } from "@/components/canvas/flowEdgeInspector";
 import { HarnessCanvas } from "@/components/canvas/HarnessCanvas";
@@ -23,6 +27,7 @@ import {
   type InspectorTarget,
 } from "@/components/inspector/NodeInspector";
 import type { AppendTarget } from "@/components/inspector/StructuralParams";
+import { RunControls } from "@/components/layout/RunControls";
 import { NodePalette } from "@/components/palette/NodePalette";
 import { CATALOG_PALETTE_GROUPS } from "@/components/palette/catalogPalette";
 import {
@@ -37,6 +42,7 @@ import {
   type NodeUpdate,
   type RunConfigUpdate,
 } from "@/model";
+import type { RunState } from "@/sim";
 
 type EditorLayoutProps = {
   /** Override the default base seed (used by branching render tests). */
@@ -47,6 +53,10 @@ type EditorLayoutProps = {
   initialSelectedEdgeIds?: string[];
   /** Observes harness state (tests / demos). */
   onHarnessChange?: (harness: Harness) => void;
+  /** Observes Edit/Run mode (tests / demos). */
+  onModeChange?: (mode: EditorMode) => void;
+  /** Observes mock run state (tests / overlay). */
+  onRunStateChange?: (state: RunState | null) => void;
 };
 
 export function EditorLayout({
@@ -54,6 +64,8 @@ export function EditorLayout({
   initialSelectedNodeIds = [],
   initialSelectedEdgeIds = [],
   onHarnessChange,
+  onModeChange,
+  onRunStateChange,
 }: EditorLayoutProps = {}) {
   const [harness, setHarness] = useState(
     () => initialHarness ?? createBaseSeedHarness(),
@@ -62,6 +74,19 @@ export function EditorLayout({
   useEffect(() => {
     onHarnessChange?.(harness);
   }, [harness, onHarnessChange]);
+
+  const {
+    mode,
+    setMode,
+    speed,
+    setSpeed,
+    runState,
+    onStep,
+    onReset,
+    canStep,
+    readOnly,
+  } = useRunSimulation({ harness, onModeChange, onRunStateChange });
+
   const flowNodes = useMemo(() => harnessToFlowNodes(harness), [harness]);
   const flowEdges = useMemo(() => harnessToFlowEdges(harness), [harness]);
 
@@ -200,43 +225,65 @@ export function EditorLayout({
 
   return (
     <div
-      className="grid h-full min-h-0 grid-cols-[14rem_1fr_16rem]"
+      className="flex h-full min-h-0 flex-col"
       data-testid="editor-layout"
+      data-editor-mode={mode}
     >
-      <NodePalette
-        groups={CATALOG_PALETTE_GROUPS}
-        onAddCatalogNode={onAddCatalogNode}
+      <RunControls
+        mode={mode}
+        onModeChange={setMode}
+        onStep={onStep}
+        onReset={onReset}
+        canStep={canStep}
+        speed={speed}
+        onSpeedChange={setSpeed}
+        status={runState?.status ?? null}
       />
-      <section
-        ref={canvasRef}
-        className="relative min-h-0 min-w-0"
-        data-testid="editor-canvas"
-        onDragOver={onCanvasDragOver}
-        onDrop={onCanvasDrop}
-      >
-        <HarnessCanvas
-          nodes={nodes}
-          edges={edges}
-          onInit={onFlowInit}
-          onNodesChange={onNodesChange}
-          onNodeDragStart={onNodeDragStart}
-          onNodeDragStop={onNodeDragStop}
-          onConnect={onConnect}
-          isValidConnection={isValidConnection}
-          onSelectionChange={onSelectionChange}
-          onNodesDelete={onNodesDelete}
-          onEdgesDelete={onEdgesDelete}
+      <div className="grid min-h-0 flex-1 grid-cols-[14rem_1fr_16rem]">
+        <NodePalette
+          groups={CATALOG_PALETTE_GROUPS}
+          onAddCatalogNode={onAddCatalogNode}
+          readOnly={readOnly}
         />
-      </section>
-      <NodeInspector
-        target={inspectorTarget}
-        runConfig={harness.runConfig}
-        onDeleteNode={onDeleteNode}
-        onUpdateNode={onUpdateNode}
-        onUpdateRunConfig={onUpdateRunConfig}
-        onDeleteEdge={onDeleteEdge}
-        appendTargets={appendTargets}
-      />
+        <section
+          ref={canvasRef}
+          className="relative min-h-0 min-w-0"
+          data-testid="editor-canvas"
+          onDragOver={(event) => {
+            if (readOnly) return;
+            onCanvasDragOver(event);
+          }}
+          onDrop={(event) => {
+            if (readOnly) return;
+            onCanvasDrop(event);
+          }}
+        >
+          <HarnessCanvas
+            nodes={nodes}
+            edges={edges}
+            onInit={onFlowInit}
+            onNodesChange={onNodesChange}
+            onNodeDragStart={onNodeDragStart}
+            onNodeDragStop={onNodeDragStop}
+            onConnect={onConnect}
+            isValidConnection={isValidConnection}
+            onSelectionChange={onSelectionChange}
+            onNodesDelete={onNodesDelete}
+            onEdgesDelete={onEdgesDelete}
+            readOnly={readOnly}
+          />
+        </section>
+        <NodeInspector
+          target={inspectorTarget}
+          runConfig={harness.runConfig}
+          onDeleteNode={onDeleteNode}
+          onUpdateNode={onUpdateNode}
+          onUpdateRunConfig={onUpdateRunConfig}
+          onDeleteEdge={onDeleteEdge}
+          appendTargets={appendTargets}
+          readOnly={readOnly}
+        />
+      </div>
     </div>
   );
 }

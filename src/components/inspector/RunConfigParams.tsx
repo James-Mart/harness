@@ -10,19 +10,19 @@ type RunConfigParamsProps = {
   /** Currently selected graph node, when the inspector target is a node. */
   selectedNode?: Node | null;
   onUpdateRunConfig: (update: RunConfigUpdate) => void;
+  /** When true, all edit controls are disabled (Run mode). */
+  readOnly?: boolean;
 };
 
 export function RunConfigParams({
   runConfig,
   selectedNode = null,
   onUpdateRunConfig,
+  readOnly = false,
 }: RunConfigParamsProps) {
-  const container =
-    selectedNode?.kind === "container" ? selectedNode : null;
+  const container = selectedNode?.kind === "container" ? selectedNode : null;
   const gate =
-    selectedNode?.kind === "leaf" && selectedNode.isGate
-      ? selectedNode
-      : null;
+    selectedNode?.kind === "leaf" && selectedNode.isGate ? selectedNode : null;
   const showConcurrency =
     container !== null && container.concurrency.kind === "parallel";
   const override = container
@@ -41,6 +41,7 @@ export function RunConfigParams({
         testId="run-config-depth-bound"
         placeholder="∞"
         value={runConfig.depthBound}
+        disabled={readOnly}
         onChange={(value) => onUpdateRunConfig({ field: "depthBound", value })}
       />
 
@@ -51,6 +52,7 @@ export function RunConfigParams({
           testId="run-config-max-concurrency"
           placeholder="structural default"
           value={override}
+          disabled={readOnly}
           onChange={(value) =>
             onUpdateRunConfig({
               field: "containerMaxConcurrency",
@@ -66,6 +68,7 @@ export function RunConfigParams({
           data-testid="run-config-gate-enabled"
           label="Gate enabled (this run)"
           checked={isGateEnabled(runConfig, gate.id)}
+          disabled={readOnly}
           onChange={(event) =>
             onUpdateRunConfig({
               field: "gateEnabled",
