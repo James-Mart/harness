@@ -2,12 +2,13 @@ import { parseOptionalPositiveInt } from "@/model/parseOptionalPositiveInt";
 import type { Harness, NodeId, RunConfig } from "@/model/types";
 
 /**
- * Run-config edits that never touch structure (nodes / edges / boundary).
- * Gate toggles are a separate surface; this covers concurrency + depth.
+ * Run-config edits that never touch structure (nodes / edges / boundary):
+ * concurrency, depth, and per-gate enable/disable.
  */
 export type RunConfigUpdate =
   | { field: "depthBound"; value: string }
-  | { field: "containerMaxConcurrency"; containerId: NodeId; value: string };
+  | { field: "containerMaxConcurrency"; containerId: NodeId; value: string }
+  | { field: "gateEnabled"; gateId: NodeId; enabled: boolean };
 
 function applyRunConfigUpdate(
   runConfig: RunConfig,
@@ -40,7 +41,28 @@ function applyRunConfigUpdate(
       }
       return { ...runConfig, perContainer };
     }
+
+    case "gateEnabled": {
+      const existing = runConfig.gates[update.gateId];
+      if (update.enabled) {
+        // Enabled is the default — drop any override.
+        if (existing === undefined) return null;
+        const gates = { ...runConfig.gates };
+        delete gates[update.gateId];
+        return { ...runConfig, gates };
+      }
+      if (existing !== undefined) return null;
+      return {
+        ...runConfig,
+        gates: { ...runConfig.gates, [update.gateId]: { enabled: false } },
+      };
+    }
   }
+}
+
+function isGateNode(harness: Harness, gateId: NodeId): boolean {
+  const node = harness.nodes.find((entry) => entry.id === gateId);
+  return node?.kind === "leaf" && node.isGate === true;
 }
 
 /**
@@ -51,6 +73,9 @@ export function updateRunConfig(
   harness: Harness,
   update: RunConfigUpdate,
 ): Harness {
+  if (update.field === "gateEnabled" && !isGateNode(harness, update.gateId)) {
+    return harness;
+  }
   const nextConfig = applyRunConfigUpdate(harness.runConfig, update);
   if (nextConfig === null) return harness;
   return { ...harness, runConfig: nextConfig };

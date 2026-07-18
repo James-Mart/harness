@@ -50,10 +50,7 @@ export function NodeInspector({
   onDeleteEdge,
   appendTargets,
 }: NodeInspectorProps) {
-  const selectedContainer =
-    target?.kind === "node" && target.node.kind === "container"
-      ? target.node
-      : null;
+  const selectedNode = target?.kind === "node" ? target.node : null;
 
   return (
     <EditorSidebar title="Inspector" side="right" data-testid="node-inspector">
@@ -155,7 +152,7 @@ export function NodeInspector({
         <InspectorCard>
           <RunConfigParams
             runConfig={runConfig}
-            container={selectedContainer}
+            selectedNode={selectedNode}
             onUpdateRunConfig={onUpdateRunConfig}
           />
         </InspectorCard>

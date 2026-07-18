@@ -76,6 +76,7 @@ export {
   createReadySet,
   effectiveConcurrency,
   isFixpoint,
+  isGateEnabled,
   maxConcurrencyOf,
   type ReadySet,
 } from "@/model/readySet";

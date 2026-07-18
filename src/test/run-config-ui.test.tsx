@@ -8,7 +8,11 @@ import {
 import { afterEach, describe, expect, it } from "vitest";
 
 import { EditorLayout } from "@/components/layout/EditorLayout";
-import { createWorkPoolSeedHarness, type Harness } from "@/model";
+import {
+  createBranchingSeedHarness,
+  createWorkPoolSeedHarness,
+  type Harness,
+} from "@/model";
 
 afterEach(() => {
   cleanup();
@@ -78,6 +82,67 @@ describe("run-config edit surface", () => {
     expect(screen.getByTestId("run-config-depth-bound")).toBeInTheDocument();
     expect(
       screen.queryByTestId("run-config-max-concurrency"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("toggles gate enable via the surface without changing structure", () => {
+    const seed = createBranchingSeedHarness();
+    const snapshots: Harness[] = [];
+
+    render(
+      <EditorLayout
+        initialHarness={seed}
+        initialSelectedNodeIds={["gate"]}
+        onHarnessChange={(harness) => {
+          snapshots.push(harness);
+        }}
+      />,
+    );
+
+    const initial = snapshots[0];
+    expect(initial).toBeDefined();
+    if (!initial) return;
+
+    const toggle = screen.getByTestId("run-config-gate-enabled");
+    expect(toggle).toBeChecked();
+    expect(
+      screen.queryByTestId("run-config-max-concurrency"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).not.toBeChecked();
+
+    const afterOff = snapshots.at(-1)!;
+    expect(afterOff.runConfig.gates.gate).toEqual({ enabled: false });
+    expect(afterOff.nodes).toBe(initial.nodes);
+    expect(afterOff.edges).toBe(initial.edges);
+
+    const gateNode = screen.getByTestId("flow-node-gate");
+    expect(gateNode).toHaveAttribute("data-gate-enabled", "false");
+    expect(within(gateNode).getByText(/gate · off/i)).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toBeChecked();
+
+    const afterOn = snapshots.at(-1)!;
+    expect(afterOn.runConfig.gates).toEqual({});
+    expect(afterOn.nodes).toBe(initial.nodes);
+    expect(screen.getByTestId("flow-node-gate")).toHaveAttribute(
+      "data-gate-enabled",
+      "true",
+    );
+  });
+
+  it("hides gate enable toggle for non-gate nodes", () => {
+    render(
+      <EditorLayout
+        initialHarness={createBranchingSeedHarness()}
+        initialSelectedNodeIds={["worker"]}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("run-config-gate-enabled"),
     ).not.toBeInTheDocument();
   });
 });

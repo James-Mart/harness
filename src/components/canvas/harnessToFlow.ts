@@ -24,7 +24,7 @@ import {
   execOutBranchesForNode,
   execOutHandleId,
 } from "@/model/exec";
-import { effectiveConcurrency } from "@/model/readySet";
+import { effectiveConcurrency, isGateEnabled } from "@/model/readySet";
 import type {
   Harness,
   LeafNode,
@@ -219,7 +219,12 @@ function toLeafFlowNode(
       catalogType: node.type,
       ports: node.ports,
       execOutBranches: execOutBranchesForNode(harness, node),
-      ...(node.isGate ? { isGate: true } : {}),
+      ...(node.isGate
+        ? {
+            isGate: true,
+            gateEnabled: isGateEnabled(harness.runConfig, node.id),
+          }
+        : {}),
       ...(node.appendsTo !== undefined
         ? {
             appendsTo: node.appendsTo,

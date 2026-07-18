@@ -12,6 +12,8 @@ export type LeafFlowData = {
   /** Exec-out slots derived from harness edges / schema. */
   execOutBranches: (string | undefined)[];
   isGate?: boolean;
+  /** Effective gate enablement from run-config (gates only). */
+  gateEnabled?: boolean;
   /** Live container this leaf appends into (fan-out). */
   appendsTo?: string;
   /** Display title of the append target (for the fan-out marker). */

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   createBaseSeedHarness,
+  createBranchingSeedHarness,
   createWorkPoolSeedHarness,
   effectiveConcurrency,
+  isGateEnabled,
   updateRunConfig,
   type ContainerNode,
   type Harness,
@@ -100,5 +102,58 @@ describe("updateRunConfig", () => {
     expect(updateRunConfig(harness, { field: "depthBound", value: "4" })).toBe(
       harness,
     );
+  });
+
+  it("toggles a gate without changing structure", () => {
+    const harness = createBranchingSeedHarness();
+    const before = structureOf(harness);
+    expect(isGateEnabled(harness.runConfig, "gate")).toBe(true);
+
+    const disabled = updateRunConfig(harness, {
+      field: "gateEnabled",
+      gateId: "gate",
+      enabled: false,
+    });
+
+    expect(disabled.runConfig.gates.gate).toEqual({ enabled: false });
+    expect(isGateEnabled(disabled.runConfig, "gate")).toBe(false);
+    expect(structureOf(disabled)).toEqual(before);
+    expect(disabled.nodes).toBe(harness.nodes);
+    expect(disabled.edges).toBe(harness.edges);
+    expect(disabled.boundary).toBe(harness.boundary);
+
+    const reenabled = updateRunConfig(disabled, {
+      field: "gateEnabled",
+      gateId: "gate",
+      enabled: true,
+    });
+    expect(reenabled.runConfig.gates).toEqual({});
+    expect(isGateEnabled(reenabled.runConfig, "gate")).toBe(true);
+    expect(reenabled.nodes).toBe(harness.nodes);
+    expect(
+      updateRunConfig(disabled, {
+        field: "gateEnabled",
+        gateId: "gate",
+        enabled: false,
+      }),
+    ).toBe(disabled);
+  });
+
+  it("rejects gateEnabled for non-gate node ids", () => {
+    const harness = createBranchingSeedHarness();
+    expect(
+      updateRunConfig(harness, {
+        field: "gateEnabled",
+        gateId: "worker",
+        enabled: false,
+      }),
+    ).toBe(harness);
+    expect(
+      updateRunConfig(harness, {
+        field: "gateEnabled",
+        gateId: "missing",
+        enabled: false,
+      }),
+    ).toBe(harness);
   });
 });

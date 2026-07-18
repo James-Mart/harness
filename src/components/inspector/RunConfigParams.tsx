@@ -1,19 +1,28 @@
-import { OptionalPositiveIntField } from "@/components/inspector/inspectorChrome";
-import type { RunConfigUpdate } from "@/model";
-import type { ContainerNode, RunConfig } from "@/model/types";
+import {
+  InspectorCheckbox,
+  OptionalPositiveIntField,
+} from "@/components/inspector/inspectorChrome";
+import { isGateEnabled, type RunConfigUpdate } from "@/model";
+import type { Node, RunConfig } from "@/model/types";
 
 type RunConfigParamsProps = {
   runConfig: RunConfig;
-  /** Selected container, when the inspector target is a container node. */
-  container?: ContainerNode | null;
+  /** Currently selected graph node, when the inspector target is a node. */
+  selectedNode?: Node | null;
   onUpdateRunConfig: (update: RunConfigUpdate) => void;
 };
 
 export function RunConfigParams({
   runConfig,
-  container = null,
+  selectedNode = null,
   onUpdateRunConfig,
 }: RunConfigParamsProps) {
+  const container =
+    selectedNode?.kind === "container" ? selectedNode : null;
+  const gate =
+    selectedNode?.kind === "leaf" && selectedNode.isGate
+      ? selectedNode
+      : null;
   const showConcurrency =
     container !== null && container.concurrency.kind === "parallel";
   const override = container
@@ -47,6 +56,21 @@ export function RunConfigParams({
               field: "containerMaxConcurrency",
               containerId: container.id,
               value,
+            })
+          }
+        />
+      ) : null}
+
+      {gate ? (
+        <InspectorCheckbox
+          data-testid="run-config-gate-enabled"
+          label="Gate enabled (this run)"
+          checked={isGateEnabled(runConfig, gate.id)}
+          onChange={(event) =>
+            onUpdateRunConfig({
+              field: "gateEnabled",
+              gateId: gate.id,
+              enabled: event.target.checked,
             })
           }
         />

@@ -79,7 +79,8 @@ export type Edge =
 export interface RunConfig {
   perContainer: Record<NodeId, { maxConcurrency?: number }>;
   depthBound?: number;
-  gates: Record<NodeId, { enabled: boolean }>;
+  /** Disabled gates only; absence means enabled. */
+  gates: Record<NodeId, { enabled: false }>;
 }
 
 export interface Harness {

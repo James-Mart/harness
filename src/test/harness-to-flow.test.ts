@@ -21,6 +21,7 @@ import {
   execEdgeId,
   execOutHandleId,
   mockSchema,
+  updateRunConfig,
 } from "@/model";
 
 describe("harnessToFlowNodes", () => {
@@ -115,6 +116,20 @@ describe("harnessToFlowNodes", () => {
     if (gate?.type !== "leaf") throw new Error("expected leaf gate");
     expect(gate.data.execOutBranches).toEqual(["ok", "deny"]);
     expect(gate.data.isGate).toBe(true);
+    expect(gate.data.gateEnabled).toBe(true);
+  });
+
+  it("maps run-config gate disable onto leaf flow data", () => {
+    const harness = updateRunConfig(createBranchingSeedHarness(), {
+      field: "gateEnabled",
+      gateId: "gate",
+      enabled: false,
+    });
+    const gate = harnessToFlowNodes(harness).find((node) => node.id === "gate");
+    expect(gate?.type).toBe("leaf");
+    if (gate?.type !== "leaf") throw new Error("expected leaf gate");
+    expect(gate.data.isGate).toBe(true);
+    expect(gate.data.gateEnabled).toBe(false);
   });
 
   it("maps work-pool concurrency, live source, fixpoint, and fan-out", () => {
