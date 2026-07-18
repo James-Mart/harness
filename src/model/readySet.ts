@@ -1,4 +1,10 @@
-import type { Concurrency, ContainerNode, Harness } from "@/model/types";
+import type {
+  Concurrency,
+  ContainerNode,
+  Harness,
+  NodeId,
+  RunConfig,
+} from "@/model/types";
 
 /**
  * Ephemeral ready-set for a live container source: items waiting,
@@ -55,6 +61,11 @@ export function effectiveConcurrency(
     kind: "parallel",
     maxConcurrency: override ?? container.concurrency.maxConcurrency,
   };
+}
+
+/** Effective gate enablement: absent from `runConfig.gates` means enabled. */
+export function isGateEnabled(runConfig: RunConfig, gateId: NodeId): boolean {
+  return runConfig.gates[gateId] === undefined;
 }
 
 /** Effective max concurrent iterations for a concurrency policy. */

@@ -17,6 +17,7 @@ export function LeafFlowNodeView({
 }: NodeProps<LeafFlowNode>) {
   const execOutCount = Math.max(1, data.execOutBranches.length);
   const hasFanOut = data.appendsTo !== undefined;
+  const gateOff = data.isGate === true && data.gateEnabled === false;
   const layoutOptions = { hasFanOutMarker: hasFanOut };
   const headerHeight = leafTitleHeaderHeight(layoutOptions);
   const dataHandleTops = (count: number) =>
@@ -28,11 +29,15 @@ export function LeafFlowNodeView({
         "bg-card text-card-foreground relative h-full w-full rounded-lg border shadow-sm",
         selected && "border-ring ring-ring/40 ring-2",
         data.isGate && "border-dashed",
+        gateOff && "opacity-50",
         hasFanOut && "border-foreground/40",
       )}
       style={flowLayoutCssVars}
       data-testid={`flow-node-${id}`}
       data-kind="leaf"
+      {...(data.isGate
+        ? { "data-gate-enabled": data.gateEnabled !== false ? "true" : "false" }
+        : {})}
     >
       <div
         style={{
@@ -44,7 +49,7 @@ export function LeafFlowNodeView({
         <p className="text-sm font-medium leading-tight">{data.title}</p>
         <p className="text-muted-foreground mt-0.5 text-[0.65rem] tracking-wide uppercase">
           {data.catalogType}
-          {data.isGate ? " · gate" : ""}
+          {data.isGate ? (gateOff ? " · gate · off" : " · gate") : ""}
         </p>
         {hasFanOut ? (
           <p

@@ -16,11 +16,13 @@ export {
 } from "@/model/instantiate";
 export { addCatalogNode, type AddCatalogNodeOptions } from "@/model/addNode";
 export { reparentNode, setNodePosition } from "@/model/reparent";
+export { parseOptionalPositiveInt } from "@/model/parseOptionalPositiveInt";
 export {
   parseMaxConcurrencyInput,
   updateNode,
   type NodeUpdate,
 } from "@/model/updateNode";
+export { updateRunConfig, type RunConfigUpdate } from "@/model/updateRunConfig";
 export { deleteSelection, removeEdges, removeNodes } from "@/model/remove";
 export {
   MOCK_SCHEMAS,
@@ -74,6 +76,7 @@ export {
   createReadySet,
   effectiveConcurrency,
   isFixpoint,
+  isGateEnabled,
   maxConcurrencyOf,
   type ReadySet,
 } from "@/model/readySet";

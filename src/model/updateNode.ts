@@ -1,3 +1,4 @@
+import { parseOptionalPositiveInt } from "@/model/parseOptionalPositiveInt";
 import type {
   Concurrency,
   ContainerNode,
@@ -40,14 +41,8 @@ function normalizeContainerEnd(node: ContainerNode): ContainerNode {
   return node;
 }
 
-/** Parse a max-concurrency text field: empty → undefined; else floor ≥ 1. */
-export function parseMaxConcurrencyInput(raw: string): number | undefined {
-  const trimmed = raw.trim();
-  if (trimmed === "") return undefined;
-  const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed) || parsed < 1) return undefined;
-  return Math.floor(parsed);
-}
+/** Alias for structural max-concurrency fields; same semantics as `parseOptionalPositiveInt`. */
+export const parseMaxConcurrencyInput = parseOptionalPositiveInt;
 
 function withConcurrencyKind(
   current: Concurrency,
@@ -93,7 +88,7 @@ function applyUpdate(node: Node, update: NodeUpdate): Node {
       if (!isContainer(node) || node.concurrency.kind !== "parallel") {
         return node;
       }
-      const maxConcurrency = parseMaxConcurrencyInput(update.value);
+      const maxConcurrency = parseOptionalPositiveInt(update.value);
       if (maxConcurrency === node.concurrency.maxConcurrency) return node;
       return {
         ...node,

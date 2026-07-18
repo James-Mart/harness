@@ -1,6 +1,7 @@
 import * as React from "react";
 import type { ReactNode } from "react";
 
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 export function InspectorCard({
@@ -56,6 +57,37 @@ export function FieldRow({
       </label>
       {children}
     </div>
+  );
+}
+
+/** Optional positive-int number field used by structural and run-config inspectors. */
+export function OptionalPositiveIntField({
+  label,
+  id,
+  testId,
+  placeholder,
+  value,
+  onChange,
+}: {
+  label: string;
+  id: string;
+  testId: string;
+  placeholder: string;
+  value: number | undefined;
+  onChange: (raw: string) => void;
+}) {
+  return (
+    <FieldRow label={label} htmlFor={id}>
+      <Input
+        id={id}
+        data-testid={testId}
+        type="number"
+        min={1}
+        placeholder={placeholder}
+        value={value ?? ""}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </FieldRow>
   );
 }
 

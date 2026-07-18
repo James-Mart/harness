@@ -4,14 +4,15 @@ import {
   DetailRow,
   InspectorCard,
 } from "@/components/inspector/inspectorChrome";
+import { RunConfigParams } from "@/components/inspector/RunConfigParams";
 import { SignatureSection } from "@/components/inspector/SignatureSection";
 import {
   StructuralParams,
   type AppendTarget,
 } from "@/components/inspector/StructuralParams";
 import { EditorSidebar } from "@/components/layout/EditorSidebar";
-import type { NodeUpdate } from "@/model";
-import type { Node, Port } from "@/model/types";
+import type { NodeUpdate, RunConfigUpdate } from "@/model";
+import type { Node, Port, RunConfig } from "@/model/types";
 
 export type InspectorTarget =
   | { kind: "node"; node: Node }
@@ -21,8 +22,10 @@ export type InspectorTarget =
 
 type NodeInspectorProps = {
   target: InspectorTarget;
+  runConfig?: RunConfig;
   onDeleteNode?: (nodeId: string) => void;
   onUpdateNode?: (nodeId: string, update: NodeUpdate) => void;
+  onUpdateRunConfig?: (update: RunConfigUpdate) => void;
   onDeleteEdge?: (edgeId: string) => void;
   /** Live containers a leaf may append into. */
   appendTargets?: AppendTarget[];
@@ -40,11 +43,15 @@ function handleLabel(handle?: string | null): string | null {
 
 export function NodeInspector({
   target,
+  runConfig,
   onDeleteNode,
   onUpdateNode,
+  onUpdateRunConfig,
   onDeleteEdge,
   appendTargets,
 }: NodeInspectorProps) {
+  const selectedNode = target?.kind === "node" ? target.node : null;
+
   return (
     <EditorSidebar title="Inspector" side="right" data-testid="node-inspector">
       {target?.kind === "node" ? (
@@ -141,6 +148,15 @@ export function NodeInspector({
           </p>
         </InspectorCard>
       )}
+      {runConfig !== undefined && onUpdateRunConfig ? (
+        <InspectorCard>
+          <RunConfigParams
+            runConfig={runConfig}
+            selectedNode={selectedNode}
+            onUpdateRunConfig={onUpdateRunConfig}
+          />
+        </InspectorCard>
+      ) : null}
     </EditorSidebar>
   );
 }
