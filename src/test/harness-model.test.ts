@@ -5,6 +5,7 @@ import {
   MOCK_CATALOG,
   MOCK_SCHEMAS,
   createBaseSeedHarness,
+  createBranchingSeedHarness,
   getCurrentItemPort,
   instantiateFromCatalog,
   itemSchemaOf,
@@ -22,7 +23,21 @@ describe("harness model", () => {
     expect(harness.edges.filter((edge) => edge.kind === "exec")).toHaveLength(
       2,
     );
-    expect(harness.boundary).toEqual([]);
+    expect(harness.boundary).toEqual([
+      {
+        id: "tasks",
+        name: "tasks",
+        direction: "in",
+        schema: mockSchema("taskList"),
+        required: true,
+      },
+      {
+        id: "summary",
+        name: "summary",
+        direction: "out",
+        schema: mockSchema("string"),
+      },
+    ]);
     expect(harness.runConfig).toEqual({ perContainer: {}, gates: {} });
 
     const source = harness.nodes.find((node) => node.id === "source");
@@ -72,6 +87,41 @@ describe("harness model", () => {
         edge.to.port === "task",
     );
     expect(currentItemWire).toBeDefined();
+  });
+
+  it("constructs a branching seed with gate ok/deny exec edges", () => {
+    const harness = createBranchingSeedHarness();
+    expect(harness.nodes.map((node) => node.id)).toEqual([
+      "source",
+      "loop",
+      "worker",
+      "gate",
+      "onOk",
+      "onDeny",
+    ]);
+    const gate = harness.nodes.find((node) => node.id === "gate");
+    expect(gate?.kind).toBe("leaf");
+    if (gate?.kind === "leaf") {
+      expect(gate.isGate).toBe(true);
+    }
+    expect(
+      harness.edges.some(
+        (edge) =>
+          edge.kind === "exec" &&
+          edge.from === "gate" &&
+          edge.to === "onOk" &&
+          edge.branch === "ok",
+      ),
+    ).toBe(true);
+    expect(
+      harness.edges.some(
+        (edge) =>
+          edge.kind === "exec" &&
+          edge.from === "gate" &&
+          edge.to === "onDeny" &&
+          edge.branch === "deny",
+      ),
+    ).toBe(true);
   });
 
   it("instantiates every catalog entry with typed ports", () => {

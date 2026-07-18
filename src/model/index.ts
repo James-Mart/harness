@@ -18,9 +18,26 @@ export {
   MOCK_SCHEMAS,
   itemSchemaOf,
   mockSchema,
+  schemaCompatKey,
+  schemaStructuralKey,
+  schemasCompatible,
   type MockSchemaName,
 } from "@/model/schema";
-export { createBaseSeedHarness } from "@/model/seed";
+export {
+  EXEC_IN_HANDLE,
+  EXEC_OUT_HANDLE,
+  branchValuesFromNode,
+  branchValuesFromPorts,
+  execEdgeId,
+  execOutBranchesForNode,
+  execOutHandleId,
+  selectExecPath,
+  type ExecEdge,
+} from "@/model/exec";
+export {
+  createBaseSeedHarness,
+  createBranchingSeedHarness,
+} from "@/model/seed";
 export {
   CURRENT_ITEM_PORT_ID,
   EMPTY_RUN_CONFIG,
@@ -34,6 +51,13 @@ export {
   type NodeId,
   type Port,
   type PortId,
+  type PortRef,
   type RunConfig,
   type Source,
 } from "@/model/types";
+export {
+  canConnectDataWire,
+  connectDataWire,
+  dataEdgeId,
+  findPort,
+} from "@/model/wiring";

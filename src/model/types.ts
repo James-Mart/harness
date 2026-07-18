@@ -4,6 +4,9 @@ export type JSONSchema = Record<string, unknown>;
 export type NodeId = string;
 export type PortId = string;
 
+/** Endpoint of a data wire (node id + port id). */
+export type PortRef = { node: NodeId; port: PortId };
+
 export interface Port {
   id: PortId;
   name: string;
@@ -45,8 +48,8 @@ export type Node = LeafNode | ContainerNode;
 export type Edge =
   | {
       kind: "data";
-      from: { node: NodeId; port: PortId };
-      to: { node: NodeId; port: PortId };
+      from: PortRef;
+      to: PortRef;
     }
   | { kind: "exec"; from: NodeId; to: NodeId; branch?: string };
 
