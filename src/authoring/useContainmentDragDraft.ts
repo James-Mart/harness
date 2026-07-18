@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useRef,
   useState,
   type Dispatch,
   type SetStateAction,
@@ -29,22 +30,26 @@ export function useContainmentDragDraft(
   onNodeDragStop: OnNodeDrag<HarnessFlowNode>;
 } {
   const [dragNodes, setDragNodes] = useState<HarnessFlowNode[] | null>(null);
+  // Synchronous gate so idle RF change batches skip setState entirely
+  // (updater bailout alone still schedules the updater).
+  const dragActiveRef = useRef(false);
 
   const nodes = dragNodes ?? flowNodes;
 
   const onNodeDragStart = useCallback<OnNodeDrag<HarnessFlowNode>>(() => {
+    dragActiveRef.current = true;
     setDragNodes(flowNodes);
   }, [flowNodes]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange<HarnessFlowNode>[]) => {
-      const positionChanges = changes.filter(
-        (change) => change.type === "position",
-      );
-      if (positionChanges.length === 0) return;
+      if (!dragActiveRef.current) return;
       setDragNodes((current) => {
         if (current === null) return current;
-        return applyNodeChanges(positionChanges, current);
+        // Full RF change stream while dragging — position moves and
+        // dimension/measured updates must both land so controlled nodes
+        // keep size and are not re-initialized (white-flash) each frame.
+        return applyNodeChanges(changes, current);
       });
     },
     [],
@@ -65,6 +70,7 @@ export function useContainmentDragDraft(
         }
         return next;
       });
+      dragActiveRef.current = false;
       setDragNodes(null);
     },
     [dragNodes, flowNodes, setHarness],
