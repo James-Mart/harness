@@ -13,6 +13,7 @@ import {
   type EndCondition,
   type LeafNode,
   type NodeId,
+  type NodePosition,
   type Port,
   type Source,
 } from "@/model/types";
@@ -41,6 +42,8 @@ export type InstantiateOptions = {
   id: NodeId;
   title?: string;
   parentId?: NodeId;
+  /** Persisted top-level placement (viewport-centre / drop authoring). */
+  position?: NodePosition;
   /** Override catalog default source (containers). */
   source?: Source;
   /** Override catalog default concurrency (containers). */
@@ -73,6 +76,7 @@ export function instantiateFromCatalog<T extends CatalogType>(
       title: options.title ?? entry.title,
       ports,
       ...(options.parentId !== undefined ? { parentId: options.parentId } : {}),
+      ...(options.position !== undefined ? { position: options.position } : {}),
       ...("isGate" in entry && entry.isGate ? { isGate: true } : {}),
       ...(options.appendsTo !== undefined
         ? { appendsTo: options.appendsTo }
@@ -106,6 +110,7 @@ export function instantiateFromCatalog<T extends CatalogType>(
     title: options.title ?? containerEntry.title,
     ports: [...ports, currentItemPort(iterablePort)],
     ...(options.parentId !== undefined ? { parentId: options.parentId } : {}),
+    ...(options.position !== undefined ? { position: options.position } : {}),
     iterablePortId: containerEntry.iterablePortId,
     source,
     concurrency: options.concurrency ?? containerEntry.defaultConcurrency,

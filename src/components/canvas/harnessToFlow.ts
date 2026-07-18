@@ -1,9 +1,10 @@
-import { MarkerType, type Edge as FlowEdge } from "@xyflow/react";
+import { MarkerType } from "@xyflow/react";
 
 import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import type {
   ContainerFlowNode,
   HarnessBoundaryFlowNode,
+  HarnessFlowEdge,
   HarnessFlowNode,
   LeafFlowNode,
 } from "@/components/canvas/flowTypes";
@@ -29,6 +30,7 @@ import type {
   LeafNode,
   Node as HarnessNode,
   NodeId,
+  NodePosition,
   Port,
 } from "@/model/types";
 import { dataEdgeId, findPort } from "@/model/wiring";
@@ -170,7 +172,7 @@ function measureTree(
   return size;
 }
 
-/** Size of the harness shell wrapping top-level nodes left-to-right. */
+/** Size of the harness shell wrapping auto-layout top-level nodes L→R. */
 function measureHarnessShell(rootSizes: Size[]): Size {
   return wrapWithHeaderChrome(
     aggregateChildContent(rootSizes, "horizontal"),
@@ -178,10 +180,28 @@ function measureHarnessShell(rootSizes: Size[]): Size {
   );
 }
 
+/** Grow the shell so a manually-placed root stays inside the boundary frame. */
+function expandShellForPlacement(
+  shell: Size,
+  position: NodePosition,
+  size: Size,
+): Size {
+  return {
+    width: Math.max(
+      shell.width,
+      position.x + size.width + FLOW_LAYOUT.containerPadX,
+    ),
+    height: Math.max(
+      shell.height,
+      position.y + size.height + FLOW_LAYOUT.containerPadY,
+    ),
+  };
+}
+
 function toLeafFlowNode(
   harness: Harness,
   node: Extract<HarnessNode, { kind: "leaf" }>,
-  position: { x: number; y: number },
+  position: NodePosition,
   size: Size,
   index: AppendIndex,
   parentId?: string,
@@ -193,7 +213,7 @@ function toLeafFlowNode(
     id: node.id,
     type: "leaf",
     position,
-    ...(parentId !== undefined ? { parentId, extent: "parent" as const } : {}),
+    ...(parentId !== undefined ? { parentId } : {}),
     data: {
       title: node.title,
       catalogType: node.type,
@@ -217,7 +237,7 @@ function toLeafFlowNode(
 function toContainerFlowNode(
   harness: Harness,
   node: Extract<HarnessNode, { kind: "container" }>,
-  position: { x: number; y: number },
+  position: NodePosition,
   size: Size,
   index: WorkPoolNodeIndex,
   parentId?: string,
@@ -226,7 +246,7 @@ function toContainerFlowNode(
     id: node.id,
     type: "container",
     position,
-    ...(parentId !== undefined ? { parentId, extent: "parent" as const } : {}),
+    ...(parentId !== undefined ? { parentId } : {}),
     data: {
       title: node.title,
       catalogType: node.type,
@@ -251,6 +271,8 @@ function toHarnessBoundaryFlowNode(
     id: HARNESS_FLOW_NODE_ID,
     type: "harness",
     position: { x: 0, y: 0 },
+    draggable: false,
+    deletable: false,
     data: {
       title: harness.title,
       ports: harness.boundary,
@@ -262,7 +284,7 @@ function toHarnessBoundaryFlowNode(
 function positionSubtree(
   harness: Harness,
   node: HarnessNode,
-  position: { x: number; y: number },
+  position: NodePosition,
   parentId: string | undefined,
   sizes: Map<NodeId, Size>,
   index: WorkPoolNodeIndex,
@@ -312,41 +334,67 @@ export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
   const index = buildWorkPoolNodeIndex(harness);
   const roots = harness.nodes.filter((node) => node.parentId === undefined);
   const sizes = new Map<NodeId, Size>();
-  const rootSizes = roots.map((root) =>
-    measureTree(harness, root, sizes, index),
-  );
-  const shellSize = measureHarnessShell(rootSizes);
+  for (const root of roots) {
+    measureTree(harness, root, sizes, index);
+  }
+
+  const sizeOf = (id: NodeId): Size => {
+    const size = sizes.get(id);
+    if (!size) throw new Error(`Missing measured size for root ${id}`);
+    return size;
+  };
+
+  // Manually-placed roots use their persisted position; the rest flow L→R.
+  const placedRoots = roots.filter((root) => root.position !== undefined);
+  const autoRoots = roots.filter((root) => root.position === undefined);
+
+  let shellSize = measureHarnessShell(autoRoots.map((root) => sizeOf(root.id)));
+  for (const root of placedRoots) {
+    shellSize = expandShellForPlacement(
+      shellSize,
+      root.position!,
+      sizeOf(root.id),
+    );
+  }
 
   const out: HarnessFlowNode[] = [
     toHarnessBoundaryFlowNode(harness, shellSize),
   ];
+
+  // Auto-layout x advances only across auto roots so placed roots cannot
+  // steal slots and overlap L→R siblings.
+  const autoPositionById = new Map<NodeId, NodePosition>();
   let x = FLOW_LAYOUT.containerPadX;
   const y = FLOW_LAYOUT.harnessHeaderHeight + FLOW_LAYOUT.containerPadY;
+  for (const root of autoRoots) {
+    autoPositionById.set(root.id, { x, y });
+    x += sizeOf(root.id).width + FLOW_LAYOUT.topLevelGap;
+  }
+
   for (const root of roots) {
-    const size = sizes.get(root.id);
-    if (!size) {
-      throw new Error(`Missing measured size for root ${root.id}`);
+    const position = root.position ?? autoPositionById.get(root.id);
+    if (!position) {
+      throw new Error(`Missing layout position for root ${root.id}`);
     }
     positionSubtree(
       harness,
       root,
-      { x, y },
+      position,
       HARNESS_FLOW_NODE_ID,
       sizes,
       index,
       out,
     );
-    x += size.width + FLOW_LAYOUT.topLevelGap;
   }
 
   return out;
 }
 
 /** React Flow edges for harness data wires, exec control, and fan-out append. */
-export function harnessToFlowEdges(harness: Harness): FlowEdge[] {
+export function harnessToFlowEdges(harness: Harness): HarnessFlowEdge[] {
   const index = buildAppendIndex(harness);
 
-  const dataEdges: FlowEdge[] = harness.edges
+  const dataEdges: HarnessFlowEdge[] = harness.edges
     .filter((edge) => edge.kind === "data")
     .map((edge) => {
       const fromPort = findPort(harness, edge.from);
@@ -365,7 +413,7 @@ export function harnessToFlowEdges(harness: Harness): FlowEdge[] {
       };
     });
 
-  const execEdges: FlowEdge[] = harness.edges
+  const execEdges: HarnessFlowEdge[] = harness.edges
     .filter((edge) => edge.kind === "exec")
     .map((edge) => ({
       id: execEdgeId(edge.from, edge.to, edge.branch),
