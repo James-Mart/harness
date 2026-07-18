@@ -42,6 +42,7 @@ describe("harnessToFlowNodes", () => {
 
     expect(shell?.type).toBe("harness");
     expect(shell?.parentId).toBeUndefined();
+    expect(shell?.draggable).toBe(false);
     expect(shell?.data).toEqual({
       title: harness.title,
       ports: harness.boundary,
@@ -52,7 +53,7 @@ describe("harnessToFlowNodes", () => {
     expect(source?.type).toBe("leaf");
     if (source?.type !== "leaf") throw new Error("expected leaf source");
     expect(source.parentId).toBe(HARNESS_FLOW_NODE_ID);
-    expect(source.extent).toBe("parent");
+    expect(source.extent).toBeUndefined();
     expect(source.data.title).toBe("List source");
     expect(source.data.catalogType).toBe("listSource");
     expect(source.data.execOutBranches).toEqual([undefined]);
@@ -68,7 +69,7 @@ describe("harnessToFlowNodes", () => {
     expect(loop?.type).toBe("container");
     if (loop?.type !== "container") throw new Error("expected container loop");
     expect(loop.parentId).toBe(HARNESS_FLOW_NODE_ID);
-    expect(loop.extent).toBe("parent");
+    expect(loop.extent).toBeUndefined();
     expect(loop.data).toMatchObject({
       title: "For each",
       catalogType: "foreach",
@@ -92,7 +93,7 @@ describe("harnessToFlowNodes", () => {
     expect(worker?.type).toBe("leaf");
     if (worker?.type !== "leaf") throw new Error("expected leaf worker");
     expect(worker.parentId).toBe("loop");
-    expect(worker.extent).toBe("parent");
+    expect(worker.extent).toBeUndefined();
     expect(worker.data.title).toBe("Implementor");
     expect(worker.data.catalogType).toBe("implementor");
     expect(worker.data.ports.map((port) => port.id)).toEqual([

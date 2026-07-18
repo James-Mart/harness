@@ -15,6 +15,7 @@ export {
   type InstantiatedNode,
 } from "@/model/instantiate";
 export { addCatalogNode } from "@/model/addNode";
+export { reparentNode } from "@/model/reparent";
 export {
   MOCK_SCHEMAS,
   itemSchemaOf,

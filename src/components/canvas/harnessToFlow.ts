@@ -193,7 +193,7 @@ function toLeafFlowNode(
     id: node.id,
     type: "leaf",
     position,
-    ...(parentId !== undefined ? { parentId, extent: "parent" as const } : {}),
+    ...(parentId !== undefined ? { parentId } : {}),
     data: {
       title: node.title,
       catalogType: node.type,
@@ -226,7 +226,7 @@ function toContainerFlowNode(
     id: node.id,
     type: "container",
     position,
-    ...(parentId !== undefined ? { parentId, extent: "parent" as const } : {}),
+    ...(parentId !== undefined ? { parentId } : {}),
     data: {
       title: node.title,
       catalogType: node.type,
@@ -251,6 +251,7 @@ function toHarnessBoundaryFlowNode(
     id: HARNESS_FLOW_NODE_ID,
     type: "harness",
     position: { x: 0, y: 0 },
+    draggable: false,
     data: {
       title: harness.title,
       ports: harness.boundary,

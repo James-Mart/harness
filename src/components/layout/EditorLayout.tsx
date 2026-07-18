@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, type DragEvent } from "react";
 import type { Connection, IsValidConnection } from "@xyflow/react";
 
 import { readCatalogDragType } from "@/authoring/catalogDrag";
+import { useContainmentDragDraft } from "@/authoring/useContainmentDragDraft";
 import { connectionEndpoints } from "@/components/canvas/connectionAdapter";
 import { HarnessCanvas } from "@/components/canvas/HarnessCanvas";
 import {
@@ -32,15 +33,8 @@ export function EditorLayout({ initialHarness }: EditorLayoutProps = {}) {
   const flowNodes = useMemo(() => harnessToFlowNodes(harness), [harness]);
   const flowEdges = useMemo(() => harnessToFlowEdges(harness), [harness]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-
-  const nodes = useMemo(
-    () =>
-      flowNodes.map((node) => ({
-        ...node,
-        selected: node.id === selectedNodeId,
-      })),
-    [flowNodes, selectedNodeId],
-  );
+  const { nodes, onNodeDragStart, onNodesChange, onNodeDragStop } =
+    useContainmentDragDraft(flowNodes, selectedNodeId, setHarness);
 
   const isValidConnection = useCallback<IsValidConnection>(
     (connection) => {
@@ -96,6 +90,9 @@ export function EditorLayout({ initialHarness }: EditorLayoutProps = {}) {
         <HarnessCanvas
           nodes={nodes}
           edges={flowEdges}
+          onNodesChange={onNodesChange}
+          onNodeDragStart={onNodeDragStart}
+          onNodeDragStop={onNodeDragStop}
           onConnect={onConnect}
           isValidConnection={isValidConnection}
           onSelectionChange={setSelectedNodeId}

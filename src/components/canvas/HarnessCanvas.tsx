@@ -6,6 +6,8 @@ import {
   type Edge,
   type IsValidConnection,
   type OnConnect,
+  type OnNodeDrag,
+  type OnNodesChange,
   type OnSelectionChangeFunc,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -16,6 +18,9 @@ import { harnessNodeTypes } from "@/components/canvas/nodeTypes";
 type HarnessCanvasProps = {
   nodes: HarnessFlowNode[];
   edges: Edge[];
+  onNodesChange?: OnNodesChange<HarnessFlowNode>;
+  onNodeDragStart?: OnNodeDrag<HarnessFlowNode>;
+  onNodeDragStop?: OnNodeDrag<HarnessFlowNode>;
   onConnect?: OnConnect;
   isValidConnection?: IsValidConnection;
   onSelectionChange?: (nodeId: string | null) => void;
@@ -24,6 +29,9 @@ type HarnessCanvasProps = {
 export function HarnessCanvas({
   nodes,
   edges,
+  onNodesChange,
+  onNodeDragStart,
+  onNodeDragStop,
   onConnect,
   isValidConnection,
   onSelectionChange,
@@ -40,9 +48,9 @@ export function HarnessCanvas({
       nodes={nodes}
       edges={edges}
       nodeTypes={harnessNodeTypes}
-      onNodesChange={() => {
-        /* Graph structure comes from the harness model. */
-      }}
+      onNodesChange={onNodesChange}
+      onNodeDragStart={onNodeDragStart}
+      onNodeDragStop={onNodeDragStop}
       onEdgesChange={() => {
         /* Edges are derived from harness data wires. */
       }}
@@ -50,7 +58,7 @@ export function HarnessCanvas({
       isValidConnection={isValidConnection}
       onSelectionChange={handleSelectionChange}
       fitView={nodes.length > 0}
-      nodesDraggable={false}
+      nodesDraggable
       nodesConnectable
       edgesFocusable={false}
       elementsSelectable
