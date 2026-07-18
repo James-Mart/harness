@@ -1,5 +1,5 @@
 import type { MockSchemaName } from "@/model/schema";
-import type { Concurrency, PortId, Source } from "@/model/types";
+import type { Concurrency, EndCondition, PortId, Source } from "@/model/types";
 
 export type CatalogPortDef = {
   id: PortId;
@@ -27,9 +27,23 @@ export type ContainerCatalogEntry = CatalogEntryBase & {
   iterablePortId: PortId;
   defaultSource: Source;
   defaultConcurrency: Concurrency;
+  /** Default end condition (fixpoint for live work-pools). */
+  defaultEnd?: EndCondition;
 };
 
 export type CatalogEntry = LeafCatalogEntry | ContainerCatalogEntry;
+
+/** Shared iterable input for foreach / workPool containers. */
+const ITERABLE_TASK_LIST_PORTS = [
+  {
+    id: "items",
+    name: "items",
+    direction: "in",
+    schema: "taskList",
+    required: true,
+    iterable: true,
+  },
+] as const satisfies readonly CatalogPortDef[];
 
 export const MOCK_CATALOG = [
   {
@@ -51,19 +65,21 @@ export const MOCK_CATALOG = [
     kind: "container",
     title: "For each",
     category: "Containers",
-    ports: [
-      {
-        id: "items",
-        name: "items",
-        direction: "in",
-        schema: "taskList",
-        required: true,
-        iterable: true,
-      },
-    ],
+    ports: ITERABLE_TASK_LIST_PORTS,
     iterablePortId: "items",
     defaultSource: { kind: "snapshot" },
     defaultConcurrency: { kind: "sequential" },
+  },
+  {
+    type: "workPool",
+    kind: "container",
+    title: "Work pool",
+    category: "Containers",
+    ports: ITERABLE_TASK_LIST_PORTS,
+    iterablePortId: "items",
+    defaultSource: { kind: "live" },
+    defaultConcurrency: { kind: "parallel", maxConcurrency: 4 },
+    defaultEnd: { kind: "fixpoint" },
   },
   {
     type: "gate",
@@ -84,6 +100,21 @@ export const MOCK_CATALOG = [
         name: "decision",
         direction: "out",
         schema: "gateDecision",
+      },
+    ],
+  },
+  {
+    type: "fanOut",
+    kind: "leaf",
+    title: "Fan-out",
+    category: "Agents",
+    ports: [
+      {
+        id: "task",
+        name: "task",
+        direction: "in",
+        schema: "task",
+        required: true,
       },
     ],
   },

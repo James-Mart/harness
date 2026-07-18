@@ -16,10 +16,19 @@ export interface Port {
   iterable?: boolean;
 }
 
+/** Iterable source liveness: fixed list vs re-pulled ready-set. */
 export type Source = { kind: "snapshot" } | { kind: "live" };
 
+/** Per-container iteration scheduling policy. */
 export type Concurrency =
   { kind: "sequential" } | { kind: "parallel"; maxConcurrency?: number };
+
+/**
+ * How a container decides it is done. Live work-pools use fixpoint
+ * (no item ready, none in flight). Snapshot containers omit this and
+ * end when their fixed list is exhausted.
+ */
+export type EndCondition = { kind: "fixpoint" };
 
 export interface LeafNode {
   kind: "leaf";
@@ -29,6 +38,11 @@ export interface LeafNode {
   ports: Port[];
   parentId?: NodeId;
   isGate?: boolean;
+  /**
+   * Container whose live source this body node may append to
+   * (recursive fan-out). Domain side effect — not a data wire.
+   */
+  appendsTo?: NodeId;
 }
 
 export interface ContainerNode {
@@ -41,6 +55,8 @@ export interface ContainerNode {
   iterablePortId: PortId;
   source: Source;
   concurrency: Concurrency;
+  /** Present on live work-pools; fixpoint end condition. */
+  end?: EndCondition;
 }
 
 export type Node = LeafNode | ContainerNode;

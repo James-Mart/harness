@@ -6,6 +6,7 @@ import {
   type Harness,
   type Port,
 } from "@/model/types";
+import { assertWorkPoolInvariants } from "@/model/workpoolGraph";
 
 /** Typed outer signature for the base seed (harness-as-node). */
 function baseSeedBoundary(): Port[] {
@@ -59,6 +60,44 @@ export function createBaseSeedHarness(): Harness {
     ],
     runConfig: structuredClone(EMPTY_RUN_CONFIG),
   };
+}
+
+/**
+ * Live work-pool seed: list source → parallel live pool → fan-out body
+ * that appends back into the pool (recursive fan-out + fixpoint end).
+ */
+export function createWorkPoolSeedHarness(): Harness {
+  const source = instantiateFromCatalog("listSource", { id: "source" });
+  const pool = instantiateFromCatalog("workPool", { id: "pool" });
+  const fanOut = instantiateFromCatalog("fanOut", {
+    id: "fanOut",
+    parentId: pool.id,
+    appendsTo: pool.id,
+  });
+
+  const harness: Harness = {
+    id: "workpool-seed",
+    title: "Work-pool seed harness",
+    boundary: baseSeedBoundary(),
+    nodes: [source, pool, fanOut],
+    edges: [
+      {
+        kind: "data",
+        from: { node: source.id, port: "items" },
+        to: { node: pool.id, port: pool.iterablePortId },
+      },
+      {
+        kind: "data",
+        from: { node: pool.id, port: CURRENT_ITEM_PORT_ID },
+        to: { node: fanOut.id, port: "task" },
+      },
+      { kind: "exec", from: source.id, to: pool.id },
+      { kind: "exec", from: pool.id, to: fanOut.id },
+    ],
+    runConfig: structuredClone(EMPTY_RUN_CONFIG),
+  };
+  assertWorkPoolInvariants(harness);
+  return harness;
 }
 
 /**
