@@ -1,5 +1,6 @@
 import { MarkerType, type Edge as FlowEdge } from "@xyflow/react";
 
+import type { WorkPoolAdvisoryCue } from "@/model/workpoolGraph";
 import type { Concurrency, LeafNode, NodeId } from "@/model/types";
 
 /** Short label for a container concurrency policy badge. */
@@ -8,6 +9,21 @@ export function concurrencyBadgeLabel(concurrency: Concurrency): string {
   const max = concurrency.maxConcurrency;
   if (max === undefined) return "∥ ∞";
   return `∥ ≤${max}`;
+}
+
+/** Short canvas label for a work-pool advisory cue. */
+export function advisoryCueLabel(cue: WorkPoolAdvisoryCue): string {
+  switch (cue) {
+    case "missing-appender":
+      return "no append";
+    case "missing-fixpoint":
+      return "no fixpoint";
+  }
+}
+
+/** Stable test id for a work-pool advisory cue badge. */
+export function advisoryCueTestId(cue: WorkPoolAdvisoryCue): string {
+  return `cue-${cue}`;
 }
 
 /** Stable React Flow edge id for a fan-out append relationship. */

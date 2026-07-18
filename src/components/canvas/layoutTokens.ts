@@ -20,6 +20,8 @@ export const FLOW_LAYOUT = {
   harnessHeaderHeight: 52,
   /** Title + subtitle + single-line work-pool badge row. */
   containerHeaderHeight: 72,
+  /** Extra header room when advisory cue badges are present. */
+  containerCueRowHeight: 18,
   /** Vertical pad inside the container header port band. */
   containerHeaderPortPadY: 8,
   childGap: 12,
@@ -27,12 +29,23 @@ export const FLOW_LAYOUT = {
 } as const;
 
 export type LeafLayoutOptions = { hasFanOutMarker?: boolean };
+export type ContainerLayoutOptions = { hasAdvisoryCues?: boolean };
 
 /** Leaf title-band height, including optional fan-out marker line. */
 export function leafTitleHeaderHeight(options: LeafLayoutOptions = {}): number {
   return (
     FLOW_LAYOUT.leafHeaderHeight +
     (options.hasFanOutMarker ? FLOW_LAYOUT.leafFanOutMarkerHeight : 0)
+  );
+}
+
+/** Container chrome header height, including optional advisory cue row. */
+export function containerChromeHeaderHeight(
+  options: ContainerLayoutOptions = {},
+): number {
+  return (
+    FLOW_LAYOUT.containerHeaderHeight +
+    (options.hasAdvisoryCues ? FLOW_LAYOUT.containerCueRowHeight : 0)
   );
 }
 

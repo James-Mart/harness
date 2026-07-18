@@ -1,5 +1,8 @@
 import type { ContainerNode, Harness, LeafNode, NodeId } from "@/model/types";
 
+/** Non-blocking work-pool advisory cue kinds. */
+export type WorkPoolAdvisoryCue = "missing-appender" | "missing-fixpoint";
+
 /** Body leaves that declare fan-out append into `containerId`. */
 export function nodesAppendingTo(
   harness: Harness,
@@ -31,6 +34,37 @@ export function workPoolsMissingFixpoint(harness: Harness): ContainerNode[] {
       node.source.kind === "live" &&
       node.end?.kind !== "fixpoint",
   );
+}
+
+/**
+ * Precomputed advisory cues keyed by container id. Only containers with at
+ * least one cue appear in the map.
+ */
+export function workPoolAdvisoryCues(
+  harness: Harness,
+): Map<NodeId, WorkPoolAdvisoryCue[]> {
+  const withoutAppender = new Set(
+    liveContainersWithoutAppender(harness).map((node) => node.id),
+  );
+  const missingFixpoint = new Set(
+    workPoolsMissingFixpoint(harness).map((node) => node.id),
+  );
+  const cuesByContainer = new Map<NodeId, WorkPoolAdvisoryCue[]>();
+  for (const id of new Set([...withoutAppender, ...missingFixpoint])) {
+    const cues: WorkPoolAdvisoryCue[] = [];
+    if (withoutAppender.has(id)) cues.push("missing-appender");
+    if (missingFixpoint.has(id)) cues.push("missing-fixpoint");
+    cuesByContainer.set(id, cues);
+  }
+  return cuesByContainer;
+}
+
+/** Advisory cues for one container (empty when none apply). */
+export function advisoryCuesForContainer(
+  harness: Harness,
+  nodeId: NodeId,
+): WorkPoolAdvisoryCue[] {
+  return workPoolAdvisoryCues(harness).get(nodeId) ?? [];
 }
 
 /**

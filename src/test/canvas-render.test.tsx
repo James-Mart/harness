@@ -130,6 +130,7 @@ describe("canvas render", () => {
     expect(within(pool).getByTestId("fan-out-target-marker")).toHaveTextContent(
       "fan-out",
     );
+    expect(within(pool).queryByTestId("advisory-cues")).toBeNull();
 
     const fanOutMarker = within(fanOut).getByTestId("fan-out-marker");
     expect(fanOutMarker).toHaveAttribute("data-appends-to", "pool");

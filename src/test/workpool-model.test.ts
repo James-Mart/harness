@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   EMPTY_RUN_CONFIG,
+  advisoryCuesForContainer,
   appendToReadySet,
   assertWorkPoolInvariants,
   availableSlots,
@@ -203,9 +204,17 @@ describe("work-pool model", () => {
     expect(workPoolsMissingFixpoint(harness).map((n) => n.id)).toEqual([
       "nofix",
     ]);
+    expect(advisoryCuesForContainer(harness, "orphan")).toEqual([
+      "missing-appender",
+    ]);
+    expect(advisoryCuesForContainer(harness, "nofix")).toEqual([
+      "missing-appender",
+      "missing-fixpoint",
+    ]);
     const seed = createWorkPoolSeedHarness();
     expect(liveContainersWithoutAppender(seed)).toEqual([]);
     expect(workPoolsMissingFixpoint(seed)).toEqual([]);
+    expect(advisoryCuesForContainer(seed, "pool")).toEqual([]);
   });
 
   it("rejects inconsistent source/end and invalid appendsTo targets", () => {

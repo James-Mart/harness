@@ -101,6 +101,56 @@ export function createWorkPoolSeedHarness(): Harness {
 }
 
 /**
+ * Live work-pools that intentionally trip advisory cues: one with no
+ * appender, one missing a fixpoint end. Used by cue detection/render tests.
+ */
+export function createWorkPoolCueDemoHarness(): Harness {
+  const source = instantiateFromCatalog("listSource", { id: "source" });
+  const noAppender = instantiateFromCatalog("workPool", {
+    id: "noAppender",
+    title: "No appender pool",
+  });
+  const noFixpoint = instantiateFromCatalog("workPool", {
+    id: "noFixpoint",
+    title: "No fixpoint pool",
+  });
+  delete noFixpoint.end;
+  const fanOut = instantiateFromCatalog("fanOut", {
+    id: "fanOut",
+    parentId: noFixpoint.id,
+    appendsTo: noFixpoint.id,
+  });
+
+  return {
+    id: "workpool-cue-demo",
+    title: "Work-pool cue demo",
+    boundary: baseSeedBoundary(),
+    nodes: [source, noAppender, noFixpoint, fanOut],
+    edges: [
+      {
+        kind: "data",
+        from: { node: source.id, port: "items" },
+        to: { node: noAppender.id, port: noAppender.iterablePortId },
+      },
+      {
+        kind: "data",
+        from: { node: source.id, port: "items" },
+        to: { node: noFixpoint.id, port: noFixpoint.iterablePortId },
+      },
+      {
+        kind: "data",
+        from: { node: noFixpoint.id, port: CURRENT_ITEM_PORT_ID },
+        to: { node: fanOut.id, port: "task" },
+      },
+      { kind: "exec", from: source.id, to: noAppender.id },
+      { kind: "exec", from: source.id, to: noFixpoint.id },
+      { kind: "exec", from: noFixpoint.id, to: fanOut.id },
+    ],
+    runConfig: structuredClone(EMPTY_RUN_CONFIG),
+  };
+}
+
+/**
  * Base seed plus a gate with ok/deny exec branches (and validators).
  * Used by exec-edge tests — not the default editor seed.
  */

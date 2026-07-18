@@ -22,8 +22,13 @@ type BodyNodeShellProps = {
   className?: string;
   headerClassName?: string;
   bodyTestId: string;
-  /** Optional badge row under the subtitle (work-pool affordances). */
+  /** Optional badge / cue rows under the subtitle (work-pool affordances). */
   badges?: ReactNode;
+  /**
+   * Explicit header height (e.g. `containerChromeHeaderHeight`). When omitted,
+   * uses the kind's base token (`harnessHeaderHeight` / `containerHeaderHeight`).
+   */
+  headerHeight?: number;
 };
 
 /**
@@ -42,15 +47,23 @@ export function BodyNodeShell({
   headerClassName,
   bodyTestId,
   badges,
+  headerHeight: headerHeightProp,
 }: BodyNodeShellProps): ReactNode {
   const execOutCount =
     execOutBranches === undefined ? 0 : Math.max(1, execOutBranches.length);
   const headerHeight =
-    kind === "harness"
+    headerHeightProp ??
+    (kind === "harness"
       ? FLOW_LAYOUT.harnessHeaderHeight
-      : FLOW_LAYOUT.containerHeaderHeight;
+      : FLOW_LAYOUT.containerHeaderHeight);
   const dataHandleTops = (count: number) =>
     containerHeaderPortHandleTops(count, execOutCount, headerHeight);
+  const cssVars = {
+    ...flowLayoutCssVars,
+    ...(kind === "container"
+      ? { "--flow-container-header-height": `${headerHeight}px` }
+      : {}),
+  };
 
   return (
     <div
@@ -59,7 +72,7 @@ export function BodyNodeShell({
         selected && "border-ring ring-ring/30 ring-2",
         className,
       )}
-      style={flowLayoutCssVars}
+      style={cssVars}
       data-testid={`flow-node-${id}`}
       data-kind={kind}
     >
@@ -80,11 +93,7 @@ export function BodyNodeShell({
             <p className="text-muted-foreground mt-0.5 text-[0.65rem] tracking-wide uppercase">
               {subtitle}
             </p>
-            {badges ? (
-              <div className="mt-1 flex flex-nowrap gap-1 overflow-hidden">
-                {badges}
-              </div>
-            ) : null}
+            {badges}
           </div>
         </div>
         {execOutBranches !== undefined ? (

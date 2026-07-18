@@ -5,7 +5,10 @@ import {
   harnessToFlowNodes,
 } from "@/components/canvas/harnessToFlow";
 import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
-import { FLOW_LAYOUT } from "@/components/canvas/layoutTokens";
+import {
+  FLOW_LAYOUT,
+  containerChromeHeaderHeight,
+} from "@/components/canvas/layoutTokens";
 import { appendEdgeId } from "@/components/canvas/workpoolVisuals";
 import {
   CURRENT_ITEM_PORT_ID,
@@ -98,7 +101,7 @@ describe("harnessToFlowNodes", () => {
     ]);
     expect(worker.position).toEqual({
       x: FLOW_LAYOUT.containerPadX,
-      y: FLOW_LAYOUT.containerHeaderHeight + FLOW_LAYOUT.containerPadY,
+      y: containerChromeHeaderHeight() + FLOW_LAYOUT.containerPadY,
     });
     expect(worker.style?.height).toBeGreaterThan(FLOW_LAYOUT.leafMinHeight - 1);
   });
@@ -127,6 +130,7 @@ describe("harnessToFlowNodes", () => {
       concurrency: { kind: "parallel", maxConcurrency: 4 },
       end: { kind: "fixpoint" },
       hasFanOut: true,
+      advisoryCues: [],
     });
 
     expect(fanOut?.type).toBe("leaf");

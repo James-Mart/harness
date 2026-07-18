@@ -37,6 +37,7 @@ export {
 export {
   createBaseSeedHarness,
   createBranchingSeedHarness,
+  createWorkPoolCueDemoHarness,
   createWorkPoolSeedHarness,
 } from "@/model/seed";
 export {
@@ -68,10 +69,13 @@ export {
   type ReadySet,
 } from "@/model/readySet";
 export {
+  advisoryCuesForContainer,
   assertWorkPoolInvariants,
   liveContainersWithoutAppender,
   nodesAppendingTo,
+  workPoolAdvisoryCues,
   workPoolsMissingFixpoint,
+  type WorkPoolAdvisoryCue,
 } from "@/model/workpoolGraph";
 export {
   canConnectDataWire,
