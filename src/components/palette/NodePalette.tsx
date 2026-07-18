@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EditorSidebar } from "@/components/layout/EditorSidebar";
-import type { PaletteGroup } from "@/components/palette/placeholderCatalog";
+import type { PaletteGroup } from "@/components/palette/catalogPalette";
 
 type NodePaletteProps = {
   groups: PaletteGroup[];
