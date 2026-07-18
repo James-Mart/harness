@@ -150,6 +150,106 @@ export function createWorkPoolCueDemoHarness(): Harness {
   };
 }
 
+/** Stable node ids for {@link createTrackerSeedHarness} — shared with the sim script. */
+export const TRACKER_NODE_IDS = {
+  source: "source",
+  epic: "epic",
+  storyStart: "storyStart",
+  taskPool: "taskPool",
+  worker: "worker",
+  storyFinish: "storyFinish",
+  epicFinish: "epicFinish",
+} as const;
+
+export const TRACKER_HARNESS_ID = "tracker-seed";
+
+/**
+ * Tracker harness: a recursive `Epic` story work-pool (parallel, live source,
+ * fixpoint end) whose body runs a `story.start` hook, a nested **sequential**
+ * `Task` container (the worker loop), and a `story.finish` hook that appends
+ * stacked child stories back into the live Epic pool (recursive fan-out).
+ * `epic.finish` runs once the pool reaches fixpoint. This is the issue-tracker
+ * work loop expressed in the everything-is-a-node model.
+ */
+export function createTrackerSeedHarness(): Harness {
+  const ids = TRACKER_NODE_IDS;
+  const source = instantiateFromCatalog("listSource", { id: ids.source });
+  const epic = instantiateFromCatalog("workPool", {
+    id: ids.epic,
+    title: "Epic",
+  });
+  const storyStart = instantiateFromCatalog("implementor", {
+    id: ids.storyStart,
+    title: "story.start",
+    parentId: epic.id,
+  });
+  const taskPool = instantiateFromCatalog("foreach", {
+    id: ids.taskPool,
+    title: "Task",
+    parentId: epic.id,
+  });
+  const worker = instantiateFromCatalog("implementor", {
+    id: ids.worker,
+    parentId: taskPool.id,
+  });
+  const storyFinish = instantiateFromCatalog("fanOut", {
+    id: ids.storyFinish,
+    title: "story.finish",
+    parentId: epic.id,
+    appendsTo: epic.id,
+  });
+  const epicFinish = instantiateFromCatalog("implementor", {
+    id: ids.epicFinish,
+    title: "epic.finish",
+  });
+
+  const harness: Harness = {
+    id: TRACKER_HARNESS_ID,
+    title: "Tracker harness",
+    boundary: baseSeedBoundary(),
+    nodes: [
+      source,
+      epic,
+      storyStart,
+      taskPool,
+      worker,
+      storyFinish,
+      epicFinish,
+    ],
+    edges: [
+      {
+        kind: "data",
+        from: { node: source.id, port: "items" },
+        to: { node: epic.id, port: epic.iterablePortId },
+      },
+      {
+        kind: "data",
+        from: { node: epic.id, port: CURRENT_ITEM_PORT_ID },
+        to: { node: storyStart.id, port: "task" },
+      },
+      {
+        kind: "data",
+        from: { node: epic.id, port: CURRENT_ITEM_PORT_ID },
+        to: { node: storyFinish.id, port: "task" },
+      },
+      {
+        kind: "data",
+        from: { node: taskPool.id, port: CURRENT_ITEM_PORT_ID },
+        to: { node: worker.id, port: "task" },
+      },
+      { kind: "exec", from: source.id, to: epic.id },
+      { kind: "exec", from: epic.id, to: storyStart.id },
+      { kind: "exec", from: storyStart.id, to: taskPool.id },
+      { kind: "exec", from: taskPool.id, to: worker.id },
+      { kind: "exec", from: taskPool.id, to: storyFinish.id },
+      { kind: "exec", from: epic.id, to: epicFinish.id },
+    ],
+    runConfig: structuredClone(EMPTY_RUN_CONFIG),
+  };
+  assertWorkPoolInvariants(harness);
+  return harness;
+}
+
 /**
  * Base seed plus a gate with ok/deny exec branches (and validators).
  * Used by exec-edge tests — not the default editor seed.

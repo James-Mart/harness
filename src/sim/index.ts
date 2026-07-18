@@ -26,6 +26,14 @@ export {
   baseSeedSimScript,
   emptySimScript,
   scriptForHarness,
+  trackerSeedSimScript,
+  trackerStoryStackSpawn,
+  trackerStoryTaskSpawn,
+  trackerTaskIds,
+  TRACKER_STORY_PATH,
+  TRACKER_STRESS_ROOTS,
+  TRACKER_STRESS_TREE,
   workPoolSeedSimScript,
+  type TrackerStoryDef,
 } from "@/sim/scripts";
 export type { SimItem, SimPathStep, SimScript, SimSpawn } from "@/sim/types";

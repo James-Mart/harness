@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { Harness } from "@/model";
-import { scriptForHarness } from "@/sim";
+import { TRACKER_HARNESS_ID, type Harness } from "@/model";
+import { scriptForHarness, TRACKER_STRESS_ROOTS } from "@/sim";
 
 describe("scriptForHarness", () => {
   it("maps known seed harness ids to deterministic scripts", () => {
@@ -14,6 +14,9 @@ describe("scriptForHarness", () => {
       "root-a",
       "root-b",
     ]);
+    expect(
+      scriptForHarness({ id: TRACKER_HARNESS_ID } as Harness).roots,
+    ).toEqual([...TRACKER_STRESS_ROOTS]);
     expect(scriptForHarness({ id: "branching-seed" } as Harness).roots).toEqual(
       ["task-1", "task-2", "task-3"],
     );

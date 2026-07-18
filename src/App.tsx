@@ -1,15 +1,17 @@
 import { EditorLayout } from "@/components/layout/EditorLayout";
 import {
   createBranchingSeedHarness,
+  createTrackerSeedHarness,
   createWorkPoolCueDemoHarness,
   createWorkPoolSeedHarness,
   type Harness,
 } from "@/model";
 
-/** Dev-only seed switch for browser checks (`?seed=workpool` / `workpool-cues` / `branching`). */
+/** Dev-only seed switch for browser checks (`?seed=tracker` / `workpool` / `workpool-cues` / `branching`). */
 function initialHarnessFromSearch(): Harness | undefined {
   if (!import.meta.env.DEV) return undefined;
   const seed = new URLSearchParams(window.location.search).get("seed");
+  if (seed === "tracker") return createTrackerSeedHarness();
   if (seed === "workpool-cues") return createWorkPoolCueDemoHarness();
   if (seed === "workpool") return createWorkPoolSeedHarness();
   if (seed === "branching") return createBranchingSeedHarness();

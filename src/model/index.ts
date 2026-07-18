@@ -47,8 +47,11 @@ export {
 export {
   createBaseSeedHarness,
   createBranchingSeedHarness,
+  createTrackerSeedHarness,
   createWorkPoolCueDemoHarness,
   createWorkPoolSeedHarness,
+  TRACKER_HARNESS_ID,
+  TRACKER_NODE_IDS,
 } from "@/model/seed";
 export {
   CURRENT_ITEM_PORT_ID,
