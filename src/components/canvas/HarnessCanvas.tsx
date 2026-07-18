@@ -2,31 +2,46 @@ import {
   Background,
   Controls,
   ReactFlow,
-  useNodesState,
-  type Node,
+  type OnSelectionChangeFunc,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-const initialNodes: Node[] = [
-  {
-    id: "1",
-    position: { x: 0, y: 0 },
-    data: { label: "Hello Harness" },
-  },
-];
+import type { HarnessFlowNode } from "@/components/canvas/flowTypes";
+import { harnessNodeTypes } from "@/components/canvas/nodeTypes";
 
-export function HarnessCanvas() {
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
+type HarnessCanvasProps = {
+  nodes: HarnessFlowNode[];
+  onSelectionChange?: (nodeId: string | null) => void;
+};
+
+export function HarnessCanvas({
+  nodes,
+  onSelectionChange,
+}: HarnessCanvasProps) {
+  const handleSelectionChange: OnSelectionChangeFunc = ({
+    nodes: selected,
+  }) => {
+    onSelectionChange?.(selected[0]?.id ?? null);
+  };
 
   return (
     <ReactFlow
       className="h-full w-full"
       nodes={nodes}
-      onNodesChange={onNodesChange}
-      fitView
+      nodeTypes={harnessNodeTypes}
+      onNodesChange={() => {
+        /* Static canvas: graph comes from the harness model. */
+      }}
+      onSelectionChange={handleSelectionChange}
+      fitView={nodes.length > 0}
+      nodesDraggable={false}
+      nodesConnectable={false}
+      edgesFocusable={false}
+      elementsSelectable
+      proOptions={{ hideAttribution: true }}
     >
-      <Background />
-      <Controls />
+      <Background gap={16} size={1} />
+      <Controls showInteractive={false} />
     </ReactFlow>
   );
 }
