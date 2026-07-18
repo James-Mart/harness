@@ -1,5 +1,10 @@
-import { TRACKER_HARNESS_ID, TRACKER_NODE_IDS } from "@/model/seed";
-import type { Harness } from "@/model/types";
+import {
+  EUNOMIO_HARNESS_ID,
+  EUNOMIO_NODE_IDS,
+  TRACKER_HARNESS_ID,
+  TRACKER_NODE_IDS,
+} from "@/model/seed";
+import type { Harness, NodeId } from "@/model/types";
 import type { SimItem, SimPathStep, SimScript } from "@/sim/types";
 
 /**
@@ -129,24 +134,34 @@ export function trackerTaskIds(story: TrackerStoryDef): string[] {
   );
 }
 
-/** Task spawn items a story fans into the Task pool (beside the builder). */
-export function trackerStoryTaskSpawn(item: SimItem): string[] {
+/** Spawn item ids fired at `atNode` into `containerId`, if any. */
+export function spawnItemsAt(
+  item: SimItem,
+  atNode: NodeId,
+  containerId: NodeId,
+): string[] {
   const spawn = item.spawns?.find(
-    (entry) =>
-      entry.atNode === TRACKER_NODE_IDS.taskPool &&
-      entry.containerId === TRACKER_NODE_IDS.taskPool,
+    (entry) => entry.atNode === atNode && entry.containerId === containerId,
   );
   return spawn ? [...spawn.items] : [];
 }
 
+/** Task spawn items a story fans into the Task pool (beside the builder). */
+export function trackerStoryTaskSpawn(item: SimItem): string[] {
+  return spawnItemsAt(
+    item,
+    TRACKER_NODE_IDS.taskPool,
+    TRACKER_NODE_IDS.taskPool,
+  );
+}
+
 /** Stacked-story spawn items a story appends into the Epic pool on finish. */
 export function trackerStoryStackSpawn(item: SimItem): string[] {
-  const spawn = item.spawns?.find(
-    (entry) =>
-      entry.atNode === TRACKER_NODE_IDS.storyFinish &&
-      entry.containerId === TRACKER_NODE_IDS.epic,
+  return spawnItemsAt(
+    item,
+    TRACKER_NODE_IDS.storyFinish,
+    TRACKER_NODE_IDS.epic,
   );
-  return spawn ? [...spawn.items] : [];
 }
 
 function buildTrackerSeedSimScript(): SimScript {
@@ -200,6 +215,95 @@ function buildTrackerSeedSimScript(): SimScript {
  */
 export const trackerSeedSimScript: SimScript = buildTrackerSeedSimScript();
 
+/**
+ * Declarative partition tree for the eunomio seed. Single source of truth for
+ * script generation and test expectations: Edge A splits → A1 (splits → A1x,
+ * A1y) + A2; Edge B is a leaf. Roots A + B enter the Partition pool together.
+ */
+export type EunomioEdgeDef = {
+  id: string;
+  label: string;
+  /** Exactly two child edge ids when this edge splits; omit for a leaf. */
+  children?: readonly [string, string];
+};
+
+/** Initial ready-set — Edge A and Edge B enter the Partition pool together. */
+export const EUNOMIO_PARTITION_ROOTS = ["edge-a", "edge-b"] as const;
+
+export const EUNOMIO_PARTITION_TREE: readonly EunomioEdgeDef[] = [
+  { id: "edge-a", label: "Edge A", children: ["edge-a1", "edge-a2"] },
+  { id: "edge-b", label: "Edge B" },
+  { id: "edge-a1", label: "Edge A1", children: ["edge-a1x", "edge-a1y"] },
+  { id: "edge-a2", label: "Edge A2" },
+  { id: "edge-a1x", label: "Edge A1x" },
+  { id: "edge-a1y", label: "Edge A1y" },
+];
+
+/** Body path when Planner chooses split (ok) → Constructor → Accept. */
+export const EUNOMIO_SPLIT_PATH: readonly SimPathStep[] = [
+  { node: EUNOMIO_NODE_IDS.planner },
+  { node: EUNOMIO_NODE_IDS.splitGate, branch: "ok" },
+  { node: EUNOMIO_NODE_IDS.constructor },
+  { node: EUNOMIO_NODE_IDS.accept },
+];
+
+/** Body path when Planner chooses indivisible (deny) → Leaf. */
+export const EUNOMIO_LEAF_PATH: readonly SimPathStep[] = [
+  { node: EUNOMIO_NODE_IDS.planner },
+  { node: EUNOMIO_NODE_IDS.splitGate, branch: "deny" },
+  { node: EUNOMIO_NODE_IDS.leaf },
+];
+
+/** Child edge ids Accept appends into the Partition pool for a split edge. */
+export function eunomioEdgeChildSpawn(item: SimItem): string[] {
+  return spawnItemsAt(
+    item,
+    EUNOMIO_NODE_IDS.accept,
+    EUNOMIO_NODE_IDS.partition,
+  );
+}
+
+function buildEunomioSeedSimScript(): SimScript {
+  const ids = EUNOMIO_NODE_IDS;
+  const items: Record<string, SimItem> = {};
+
+  for (const edge of EUNOMIO_PARTITION_TREE) {
+    if (edge.children) {
+      items[edge.id] = {
+        id: edge.id,
+        label: edge.label,
+        containerId: ids.partition,
+        path: [...EUNOMIO_SPLIT_PATH],
+        spawns: [
+          {
+            atNode: ids.accept,
+            containerId: ids.partition,
+            items: [...edge.children],
+          },
+        ],
+      };
+    } else {
+      items[edge.id] = {
+        id: edge.id,
+        label: edge.label,
+        containerId: ids.partition,
+        path: [...EUNOMIO_LEAF_PATH],
+      };
+    }
+  }
+
+  return {
+    roots: [...EUNOMIO_PARTITION_ROOTS],
+    items,
+  };
+}
+
+/**
+ * Deterministic script for {@link createEunomioSeedHarness}, built from
+ * {@link EUNOMIO_PARTITION_TREE}.
+ */
+export const eunomioSeedSimScript: SimScript = buildEunomioSeedSimScript();
+
 /** Empty script — Run mode with no known seed script reaches fixpoint immediately. */
 export const emptySimScript: SimScript = { roots: [], items: {} };
 
@@ -216,6 +320,8 @@ export function scriptForHarness(harness: Harness): SimScript {
       return workPoolSeedSimScript;
     case TRACKER_HARNESS_ID:
       return trackerSeedSimScript;
+    case EUNOMIO_HARNESS_ID:
+      return eunomioSeedSimScript;
     default:
       return emptySimScript;
   }

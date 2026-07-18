@@ -47,9 +47,12 @@ export {
 export {
   createBaseSeedHarness,
   createBranchingSeedHarness,
+  createEunomioSeedHarness,
   createTrackerSeedHarness,
   createWorkPoolCueDemoHarness,
   createWorkPoolSeedHarness,
+  EUNOMIO_HARNESS_ID,
+  EUNOMIO_NODE_IDS,
   TRACKER_HARNESS_ID,
   TRACKER_NODE_IDS,
 } from "@/model/seed";

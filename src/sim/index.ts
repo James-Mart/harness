@@ -25,15 +25,23 @@ export {
 export {
   baseSeedSimScript,
   emptySimScript,
+  eunomioEdgeChildSpawn,
+  eunomioSeedSimScript,
   scriptForHarness,
+  spawnItemsAt,
   trackerSeedSimScript,
   trackerStoryStackSpawn,
   trackerStoryTaskSpawn,
   trackerTaskIds,
+  EUNOMIO_LEAF_PATH,
+  EUNOMIO_PARTITION_ROOTS,
+  EUNOMIO_PARTITION_TREE,
+  EUNOMIO_SPLIT_PATH,
   TRACKER_STORY_PATH,
   TRACKER_STRESS_ROOTS,
   TRACKER_STRESS_TREE,
   workPoolSeedSimScript,
+  type EunomioEdgeDef,
   type TrackerStoryDef,
 } from "@/sim/scripts";
 export type { SimItem, SimPathStep, SimScript, SimSpawn } from "@/sim/types";
