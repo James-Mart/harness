@@ -26,5 +26,11 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ["e2e/**/*.ts", "playwright.config.ts", "devServer.config.ts"],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
   eslintConfigPrettier,
 );
