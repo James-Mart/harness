@@ -3,6 +3,7 @@ import {
   FieldRow,
   InspectorCheckbox,
   InspectorSelect,
+  OptionalPositiveIntField,
 } from "@/components/inspector/inspectorChrome";
 import { Input } from "@/components/ui/input";
 import type { NodeUpdate } from "@/model";
@@ -62,25 +63,16 @@ function ContainerStructuralFields({
       </FieldRow>
 
       {node.concurrency.kind === "parallel" ? (
-        <FieldRow
+        <OptionalPositiveIntField
           label="Max concurrency"
-          htmlFor="inspector-field-max-concurrency"
-        >
-          <Input
-            id="inspector-field-max-concurrency"
-            data-testid="inspector-field-max-concurrency"
-            type="number"
-            min={1}
-            placeholder="∞"
-            value={node.concurrency.maxConcurrency ?? ""}
-            onChange={(event) =>
-              onUpdateNode(node.id, {
-                field: "maxConcurrency",
-                value: event.target.value,
-              })
-            }
-          />
-        </FieldRow>
+          id="inspector-field-max-concurrency"
+          testId="inspector-field-max-concurrency"
+          placeholder="∞"
+          value={node.concurrency.maxConcurrency}
+          onChange={(value) =>
+            onUpdateNode(node.id, { field: "maxConcurrency", value })
+          }
+        />
       ) : null}
 
       <InspectorCheckbox

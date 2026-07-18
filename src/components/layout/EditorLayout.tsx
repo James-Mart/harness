@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   Connection,
   Edge as FlowEdge,
@@ -31,9 +31,11 @@ import {
   createBaseSeedHarness,
   deleteSelection,
   updateNode,
+  updateRunConfig,
   type Harness,
   type NodeId,
   type NodeUpdate,
+  type RunConfigUpdate,
 } from "@/model";
 
 type EditorLayoutProps = {
@@ -43,16 +45,23 @@ type EditorLayoutProps = {
   initialSelectedNodeIds?: string[];
   /** Seed canvas edge selection (tests / controlled demos). */
   initialSelectedEdgeIds?: string[];
+  /** Observes harness state (tests / demos). */
+  onHarnessChange?: (harness: Harness) => void;
 };
 
 export function EditorLayout({
   initialHarness,
   initialSelectedNodeIds = [],
   initialSelectedEdgeIds = [],
+  onHarnessChange,
 }: EditorLayoutProps = {}) {
   const [harness, setHarness] = useState(
     () => initialHarness ?? createBaseSeedHarness(),
   );
+
+  useEffect(() => {
+    onHarnessChange?.(harness);
+  }, [harness, onHarnessChange]);
   const flowNodes = useMemo(() => harnessToFlowNodes(harness), [harness]);
   const flowEdges = useMemo(() => harnessToFlowEdges(harness), [harness]);
 
@@ -141,6 +150,10 @@ export function EditorLayout({
     setHarness((current) => updateNode(current, nodeId, update));
   }, []);
 
+  const onUpdateRunConfig = useCallback((update: RunConfigUpdate) => {
+    setHarness((current) => updateRunConfig(current, update));
+  }, []);
+
   const applyDelete = useCallback(
     (selection: {
       nodeIds?: readonly NodeId[];
@@ -217,8 +230,10 @@ export function EditorLayout({
       </section>
       <NodeInspector
         target={inspectorTarget}
+        runConfig={harness.runConfig}
         onDeleteNode={onDeleteNode}
         onUpdateNode={onUpdateNode}
+        onUpdateRunConfig={onUpdateRunConfig}
         onDeleteEdge={onDeleteEdge}
         appendTargets={appendTargets}
       />
