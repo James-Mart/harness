@@ -2,21 +2,20 @@ import {
   Background,
   Controls,
   ReactFlow,
-  type Node,
-  type OnNodesChange,
   type OnSelectionChangeFunc,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
+import type { HarnessFlowNode } from "@/components/canvas/flowTypes";
+import { harnessNodeTypes } from "@/components/canvas/nodeTypes";
+
 type HarnessCanvasProps = {
-  nodes: Node[];
-  onNodesChange: OnNodesChange;
+  nodes: HarnessFlowNode[];
   onSelectionChange?: (nodeId: string | null) => void;
 };
 
 export function HarnessCanvas({
   nodes,
-  onNodesChange,
   onSelectionChange,
 }: HarnessCanvasProps) {
   const handleSelectionChange: OnSelectionChangeFunc = ({
@@ -29,12 +28,20 @@ export function HarnessCanvas({
     <ReactFlow
       className="h-full w-full"
       nodes={nodes}
-      onNodesChange={onNodesChange}
+      nodeTypes={harnessNodeTypes}
+      onNodesChange={() => {
+        /* Static canvas: graph comes from the harness model. */
+      }}
       onSelectionChange={handleSelectionChange}
       fitView={nodes.length > 0}
+      nodesDraggable={false}
+      nodesConnectable={false}
+      edgesFocusable={false}
+      elementsSelectable
+      proOptions={{ hideAttribution: true }}
     >
-      <Background />
-      <Controls />
+      <Background gap={16} size={1} />
+      <Controls showInteractive={false} />
     </ReactFlow>
   );
 }
