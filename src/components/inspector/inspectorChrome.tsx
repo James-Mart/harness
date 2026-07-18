@@ -1,3 +1,4 @@
+import * as React from "react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -35,5 +36,59 @@ export function DetailRow({
       <dt className="text-muted-foreground">{label}</dt>
       <dd data-testid={testId}>{children}</dd>
     </div>
+  );
+}
+
+/** Stacked label + control row for editable inspector fields. */
+export function FieldRow({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <label htmlFor={htmlFor} className="text-muted-foreground block text-xs">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+/** Native select styled to match the inspector inputs. */
+export function InspectorSelect({
+  className,
+  ...props
+}: React.ComponentProps<"select">) {
+  return (
+    <select
+      className={cn(
+        "border-input h-8 w-full min-w-0 rounded-lg border bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/** Checkbox + label row matching other inspector controls. */
+export function InspectorCheckbox({
+  label,
+  className,
+  ...props
+}: React.ComponentProps<"input"> & { label: string }) {
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <input
+        type="checkbox"
+        className={cn("size-4 accent-current", className)}
+        {...props}
+      />
+      <span>{label}</span>
+    </label>
   );
 }

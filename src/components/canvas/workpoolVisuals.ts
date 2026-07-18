@@ -1,5 +1,6 @@
-import { MarkerType, type Edge as FlowEdge } from "@xyflow/react";
+import { MarkerType } from "@xyflow/react";
 
+import type { HarnessFlowEdge } from "@/components/canvas/flowTypes";
 import { appendEdgeId, type WorkPoolAdvisoryCue } from "@/model/workpoolGraph";
 import type { Concurrency, LeafNode, NodeId } from "@/model/types";
 
@@ -29,7 +30,7 @@ export function advisoryCueTestId(cue: WorkPoolAdvisoryCue): string {
 /** Dashed animated React Flow edge for a leaf's `appendsTo` relationship. */
 export function toAppendFlowEdge(
   leaf: Pick<LeafNode, "id"> & { appendsTo: NodeId },
-): FlowEdge {
+): HarnessFlowEdge {
   return {
     id: appendEdgeId(leaf.id, leaf.appendsTo),
     source: leaf.id,

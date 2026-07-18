@@ -40,10 +40,12 @@ export function useCanvasSelection(
   flowNodes: HarnessFlowNode[],
   flowEdges: Edge[],
   initialSelectedNodeIds: readonly string[] = [],
+  initialSelectedEdgeIds: readonly string[] = [],
 ): {
   nodes: HarnessFlowNode[];
   edges: Edge[];
   selectedNodeIds: string[];
+  selectedEdgeIds: string[];
   onSelectionChange: (selection: CanvasSelection) => void;
   clearDeletedFromSelection: (
     nodeIds: readonly string[],
@@ -53,7 +55,9 @@ export function useCanvasSelection(
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>(() => [
     ...initialSelectedNodeIds,
   ]);
-  const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
+  const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>(() => [
+    ...initialSelectedEdgeIds,
+  ]);
 
   const nodes = useMemo(
     () => withNodeSelection(flowNodes, selectedNodeIds),
@@ -91,6 +95,7 @@ export function useCanvasSelection(
     nodes,
     edges,
     selectedNodeIds,
+    selectedEdgeIds,
     onSelectionChange,
     clearDeletedFromSelection,
   };

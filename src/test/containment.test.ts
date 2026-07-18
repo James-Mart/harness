@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { resolveContainmentParent } from "@/authoring/containment";
 import { harnessToFlowNodes } from "@/components/canvas/harnessToFlow";
 import { isAncestorOf } from "@/model/ancestry";
-import { createBaseSeedHarness, reparentNode } from "@/model";
+import {
+  addCatalogNode,
+  createBaseSeedHarness,
+  reparentNode,
+  setNodePosition,
+} from "@/model";
 import { isUnder } from "@/model/reparent";
 import {
   cycleAvoidanceNodes,
@@ -19,6 +24,30 @@ describe("reparentNode", () => {
     expect(next.nodes.find((node) => node.id === "source")?.parentId).toBe(
       "loop",
     );
+  });
+
+  it("clears persisted position when nesting into a container", () => {
+    const placed = addCatalogNode(createBaseSeedHarness(), "gate", {
+      position: { x: 400, y: 200 },
+    });
+    const nested = reparentNode(placed, "gate-1", "loop");
+    const gate = nested.nodes.find((node) => node.id === "gate-1");
+    expect(gate?.parentId).toBe("loop");
+    expect(gate?.position).toBeUndefined();
+  });
+
+  it("strips a stale position when parent is already nested", () => {
+    const nested = reparentNode(createBaseSeedHarness(), "source", "loop");
+    const stale = {
+      ...nested,
+      nodes: nested.nodes.map((node) =>
+        node.id === "source" ? { ...node, position: { x: 10, y: 20 } } : node,
+      ),
+    };
+    const cleaned = reparentNode(stale, "source", "loop");
+    expect(
+      cleaned.nodes.find((node) => node.id === "source")?.position,
+    ).toBeUndefined();
   });
 
   it("un-nests a child to the harness top level", () => {
@@ -53,6 +82,23 @@ describe("reparentNode", () => {
     expect(isUnder(harness, "loop", "worker")).toBe(true);
     expect(isUnder(harness, "worker", "loop")).toBe(false);
     expect(isUnder(harness, "loop", "loop")).toBe(true);
+  });
+  it("persists top-level position and clears it when nested", () => {
+    const placed = setNodePosition(createBaseSeedHarness(), "source", {
+      x: 120,
+      y: 80,
+    });
+    expect(placed.nodes.find((node) => node.id === "source")?.position).toEqual(
+      { x: 120, y: 80 },
+    );
+
+    const nested = reparentNode(placed, "source", "loop");
+    // reparent clears; setNodePosition also refuses nested writes
+    expect(
+      setNodePosition(nested, "source", { x: 1, y: 2 }).nodes.find(
+        (node) => node.id === "source",
+      )?.position,
+    ).toBeUndefined();
   });
 });
 

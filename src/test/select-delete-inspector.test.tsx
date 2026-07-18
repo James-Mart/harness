@@ -44,7 +44,7 @@ describe("NodeInspector", () => {
     expect(screen.getByTestId("inspector-delete")).toBeInTheDocument();
   });
 
-  it("renders container structural source/concurrency/end", () => {
+  it("renders editable container structural source/concurrency/end", () => {
     const pool = createWorkPoolSeedHarness().nodes.find(
       (node) => node.id === "pool",
     );
@@ -53,13 +53,14 @@ describe("NodeInspector", () => {
 
     render(<NodeInspector target={{ kind: "node", node: pool }} />);
 
-    expect(screen.getByTestId("inspector-source-kind")).toHaveTextContent(
-      "live",
-    );
-    expect(screen.getByTestId("inspector-concurrency")).toHaveTextContent(
+    expect(screen.getByTestId("inspector-field-source")).toHaveValue("live");
+    expect(screen.getByTestId("inspector-field-concurrency")).toHaveValue(
       "parallel",
     );
-    expect(screen.getByTestId("inspector-end")).toHaveTextContent("fixpoint");
+    expect(screen.getByTestId("inspector-field-max-concurrency")).toHaveValue(
+      4,
+    );
+    expect(screen.getByTestId("inspector-field-end")).toBeChecked();
   });
 
   it("renders harness boundary signature without delete", () => {
@@ -117,9 +118,7 @@ describe("select + delete inspector wiring", () => {
       within(canvas).queryByTestId("flow-node-source"),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText(
-        "Select a node to see its typed signature and structural parameters.",
-      ),
+      screen.getByText("Select a node or edge to inspect."),
     ).toBeInTheDocument();
   });
 
@@ -136,5 +135,49 @@ describe("select + delete inspector wiring", () => {
       within(canvas).queryByTestId("flow-node-worker"),
     ).not.toBeInTheDocument();
     expect(within(canvas).getByTestId("flow-node-source")).toBeInTheDocument();
+  });
+
+  it("edits a node title from the inspector and reflects it live", () => {
+    render(<EditorLayout initialSelectedNodeIds={["worker"]} />);
+
+    const titleField = screen.getByTestId("inspector-field-title");
+    expect(titleField).toHaveValue("Implementor");
+
+    fireEvent.change(titleField, { target: { value: "Builder" } });
+
+    const inspector = screen.getByTestId("node-inspector");
+    expect(within(inspector).getByTestId("inspector-title")).toHaveTextContent(
+      "Builder",
+    );
+    expect(screen.getByTestId("inspector-field-title")).toHaveValue("Builder");
+  });
+});
+
+describe("edge inspector wiring", () => {
+  const dataEdgeId = "data:source/items->loop/items";
+
+  it("shows a selected edge's endpoints", () => {
+    render(<EditorLayout initialSelectedEdgeIds={[dataEdgeId]} />);
+
+    const inspector = screen.getByTestId("node-inspector");
+    expect(within(inspector).getByTestId("inspector-edge")).toBeInTheDocument();
+    expect(
+      within(inspector).getByTestId("inspector-edge-source"),
+    ).toHaveTextContent("source");
+    expect(
+      within(inspector).getByTestId("inspector-edge-target"),
+    ).toHaveTextContent("loop");
+  });
+
+  it("deletes the selected edge from the inspector button", () => {
+    render(<EditorLayout initialSelectedEdgeIds={[dataEdgeId]} />);
+
+    const inspector = screen.getByTestId("node-inspector");
+    fireEvent.click(within(inspector).getByTestId("inspector-edge-delete"));
+
+    expect(within(inspector).queryByTestId("inspector-edge")).toBeNull();
+    expect(
+      screen.getByText("Select a node or edge to inspect."),
+    ).toBeInTheDocument();
   });
 });

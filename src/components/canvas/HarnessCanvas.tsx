@@ -7,6 +7,7 @@ import {
   type IsValidConnection,
   type OnConnect,
   type OnEdgesDelete,
+  type OnInit,
   type OnNodeDrag,
   type OnNodesChange,
   type OnNodesDelete,
@@ -33,6 +34,7 @@ type HarnessCanvasProps = {
   onSelectionChange?: (selection: CanvasSelection) => void;
   onNodesDelete?: OnNodesDelete;
   onEdgesDelete?: OnEdgesDelete;
+  onInit?: OnInit<HarnessFlowNode, Edge>;
 };
 
 export function HarnessCanvas({
@@ -46,6 +48,7 @@ export function HarnessCanvas({
   onSelectionChange,
   onNodesDelete,
   onEdgesDelete,
+  onInit,
 }: HarnessCanvasProps) {
   const handleSelectionChange: OnSelectionChangeFunc = ({
     nodes: selectedNodes,
@@ -63,6 +66,7 @@ export function HarnessCanvas({
       nodes={nodes}
       edges={edges}
       nodeTypes={harnessNodeTypes}
+      onInit={onInit}
       onNodesChange={onNodesChange}
       onNodeDragStart={onNodeDragStart}
       onNodeDragStop={onNodeDragStop}

@@ -7,6 +7,9 @@ export type PortId = string;
 /** Endpoint of a data wire (node id + port id). */
 export type PortRef = { node: NodeId; port: PortId };
 
+/** Persisted canvas position for a top-level node (authoring placement). */
+export type NodePosition = { x: number; y: number };
+
 export interface Port {
   id: PortId;
   name: string;
@@ -37,6 +40,8 @@ export interface LeafNode {
   title: string;
   ports: Port[];
   parentId?: NodeId;
+  /** Persisted top-level placement; honored only while `parentId` is unset. */
+  position?: NodePosition;
   isGate?: boolean;
   /**
    * Container whose live source this body node may append to
@@ -52,6 +57,8 @@ export interface ContainerNode {
   title: string;
   ports: Port[];
   parentId?: NodeId;
+  /** Persisted top-level placement; honored only while `parentId` is unset. */
+  position?: NodePosition;
   iterablePortId: PortId;
   source: Source;
   concurrency: Concurrency;

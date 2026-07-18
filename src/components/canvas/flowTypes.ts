@@ -1,4 +1,4 @@
-import type { Node } from "@xyflow/react";
+import type { Edge, Node } from "@xyflow/react";
 
 import type { WorkPoolAdvisoryCue } from "@/model/workpoolGraph";
 import type { Concurrency, EndCondition, Port } from "@/model/types";
@@ -48,3 +48,22 @@ export type ContainerFlowNode = Node<ContainerFlowData, "container">;
 export type HarnessBoundaryFlowNode = Node<HarnessBoundaryFlowData, "harness">;
 export type HarnessFlowNode =
   LeafFlowNode | ContainerFlowNode | HarnessBoundaryFlowNode;
+
+export type DataFlowEdgeData = { kind: "data" };
+export type ExecFlowEdgeData = { kind: "exec"; branch?: string };
+export type AppendFlowEdgeData = { kind: "append" };
+export type HarnessFlowEdgeData =
+  DataFlowEdgeData | ExecFlowEdgeData | AppendFlowEdgeData;
+
+export type HarnessFlowEdge = Edge<HarnessFlowEdgeData>;
+
+/** Inspector view of a selected flow edge (endpoints + optional branch). */
+export type InspectorEdgeView = {
+  id: string;
+  edgeKind: HarnessFlowEdgeData["kind"];
+  source: string;
+  sourceHandle?: string | null;
+  target: string;
+  targetHandle?: string | null;
+  branch?: string;
+};

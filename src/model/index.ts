@@ -14,8 +14,13 @@ export {
   type InstantiateOptions,
   type InstantiatedNode,
 } from "@/model/instantiate";
-export { addCatalogNode } from "@/model/addNode";
-export { reparentNode } from "@/model/reparent";
+export { addCatalogNode, type AddCatalogNodeOptions } from "@/model/addNode";
+export { reparentNode, setNodePosition } from "@/model/reparent";
+export {
+  parseMaxConcurrencyInput,
+  updateNode,
+  type NodeUpdate,
+} from "@/model/updateNode";
 export { deleteSelection, removeEdges, removeNodes } from "@/model/remove";
 export {
   MOCK_SCHEMAS,
@@ -55,6 +60,7 @@ export {
   type LeafNode,
   type Node,
   type NodeId,
+  type NodePosition,
   type Port,
   type PortId,
   type PortRef,

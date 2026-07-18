@@ -13,9 +13,7 @@ describe("editor layout", () => {
     expect(screen.getByTestId("node-inspector")).toBeInTheDocument();
     expect(container.querySelector(".react-flow")).toBeTruthy();
     expect(
-      screen.getByText(
-        "Select a node to see its typed signature and structural parameters.",
-      ),
+      screen.getByText("Select a node or edge to inspect."),
     ).toBeInTheDocument();
   });
 });

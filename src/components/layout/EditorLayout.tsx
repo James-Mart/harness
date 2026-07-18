@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type DragEvent } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type {
   Connection,
   Edge as FlowEdge,
@@ -7,10 +7,11 @@ import type {
   OnNodesDelete,
 } from "@xyflow/react";
 
-import { readCatalogDragType } from "@/authoring/catalogDrag";
 import { useCanvasSelection } from "@/authoring/useCanvasSelection";
 import { useContainmentDragDraft } from "@/authoring/useContainmentDragDraft";
+import { useFlowPlacement } from "@/authoring/useFlowPlacement";
 import { connectionEndpoints } from "@/components/canvas/connectionAdapter";
+import { flowEdgeToInspectorView } from "@/components/canvas/flowEdgeInspector";
 import { HarnessCanvas } from "@/components/canvas/HarnessCanvas";
 import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import {
@@ -21,35 +22,47 @@ import {
   NodeInspector,
   type InspectorTarget,
 } from "@/components/inspector/NodeInspector";
+import type { AppendTarget } from "@/components/inspector/StructuralParams";
 import { NodePalette } from "@/components/palette/NodePalette";
 import { CATALOG_PALETTE_GROUPS } from "@/components/palette/catalogPalette";
 import {
-  addCatalogNode,
   canConnectDataWire,
   connectDataWire,
   createBaseSeedHarness,
   deleteSelection,
-  type CatalogType,
+  updateNode,
   type Harness,
   type NodeId,
+  type NodeUpdate,
 } from "@/model";
 
 type EditorLayoutProps = {
   /** Override the default base seed (used by branching render tests). */
   initialHarness?: Harness;
-  /** Seed canvas selection (tests / controlled demos). */
+  /** Seed canvas node selection (tests / controlled demos). */
   initialSelectedNodeIds?: string[];
+  /** Seed canvas edge selection (tests / controlled demos). */
+  initialSelectedEdgeIds?: string[];
 };
 
 export function EditorLayout({
   initialHarness,
   initialSelectedNodeIds = [],
+  initialSelectedEdgeIds = [],
 }: EditorLayoutProps = {}) {
   const [harness, setHarness] = useState(
     () => initialHarness ?? createBaseSeedHarness(),
   );
   const flowNodes = useMemo(() => harnessToFlowNodes(harness), [harness]);
   const flowEdges = useMemo(() => harnessToFlowEdges(harness), [harness]);
+
+  const {
+    canvasRef,
+    onFlowInit,
+    onAddCatalogNode,
+    onCanvasDragOver,
+    onCanvasDrop,
+  } = useFlowPlacement(setHarness);
 
   const {
     nodes: draftNodes,
@@ -62,23 +75,49 @@ export function EditorLayout({
     nodes,
     edges,
     selectedNodeIds,
+    selectedEdgeIds,
     onSelectionChange,
     clearDeletedFromSelection,
-  } = useCanvasSelection(draftNodes, flowEdges, initialSelectedNodeIds);
+  } = useCanvasSelection(
+    draftNodes,
+    flowEdges,
+    initialSelectedNodeIds,
+    initialSelectedEdgeIds,
+  );
+
+  const appendTargets = useMemo<AppendTarget[]>(
+    () =>
+      harness.nodes
+        .filter(
+          (node) => node.kind === "container" && node.source.kind === "live",
+        )
+        .map((node) => ({ id: node.id, title: node.title })),
+    [harness],
+  );
 
   const inspectorTarget = useMemo<InspectorTarget>(() => {
     const primaryId = selectedNodeIds[0];
-    if (primaryId === undefined) return null;
-    if (primaryId === HARNESS_FLOW_NODE_ID) {
-      return {
-        kind: "harness",
-        title: harness.title,
-        ports: harness.boundary,
-      };
+    if (primaryId !== undefined) {
+      if (primaryId === HARNESS_FLOW_NODE_ID) {
+        return {
+          kind: "harness",
+          title: harness.title,
+          ports: harness.boundary,
+        };
+      }
+      const node = harness.nodes.find((entry) => entry.id === primaryId);
+      return node ? { kind: "node", node } : null;
     }
-    const node = harness.nodes.find((entry) => entry.id === primaryId);
-    return node ? { kind: "node", node } : null;
-  }, [harness, selectedNodeIds]);
+    const edgeId = selectedEdgeIds[0];
+    if (edgeId !== undefined) {
+      const edge = flowEdges.find((entry) => entry.id === edgeId);
+      if (edge) {
+        const view = flowEdgeToInspectorView(edge);
+        if (view) return { kind: "edge", edge: view };
+      }
+    }
+    return null;
+  }, [harness, selectedNodeIds, selectedEdgeIds, flowEdges]);
 
   const isValidConnection = useCallback<IsValidConnection>(
     (connection) => {
@@ -98,23 +137,9 @@ export function EditorLayout({
     });
   }, []);
 
-  const onAddCatalogNode = useCallback((type: CatalogType) => {
-    setHarness((current) => addCatalogNode(current, type));
+  const onUpdateNode = useCallback((nodeId: NodeId, update: NodeUpdate) => {
+    setHarness((current) => updateNode(current, nodeId, update));
   }, []);
-
-  const onCanvasDragOver = useCallback((event: DragEvent) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
-  }, []);
-
-  const onCanvasDrop = useCallback(
-    (event: DragEvent) => {
-      event.preventDefault();
-      const type = readCatalogDragType(event.dataTransfer);
-      if (type) onAddCatalogNode(type);
-    },
-    [onAddCatalogNode],
-  );
 
   const applyDelete = useCallback(
     (selection: {
@@ -153,6 +178,13 @@ export function EditorLayout({
     [applyDelete],
   );
 
+  const onDeleteEdge = useCallback(
+    (edgeId: string) => {
+      applyDelete({ edgeIds: [edgeId] });
+    },
+    [applyDelete],
+  );
+
   return (
     <div
       className="grid h-full min-h-0 grid-cols-[14rem_1fr_16rem]"
@@ -163,6 +195,7 @@ export function EditorLayout({
         onAddCatalogNode={onAddCatalogNode}
       />
       <section
+        ref={canvasRef}
         className="relative min-h-0 min-w-0"
         data-testid="editor-canvas"
         onDragOver={onCanvasDragOver}
@@ -171,6 +204,7 @@ export function EditorLayout({
         <HarnessCanvas
           nodes={nodes}
           edges={edges}
+          onInit={onFlowInit}
           onNodesChange={onNodesChange}
           onNodeDragStart={onNodeDragStart}
           onNodeDragStop={onNodeDragStop}
@@ -183,9 +217,10 @@ export function EditorLayout({
       </section>
       <NodeInspector
         target={inspectorTarget}
-        onDeleteNode={
-          inspectorTarget?.kind === "node" ? onDeleteNode : undefined
-        }
+        onDeleteNode={onDeleteNode}
+        onUpdateNode={onUpdateNode}
+        onDeleteEdge={onDeleteEdge}
+        appendTargets={appendTargets}
       />
     </div>
   );

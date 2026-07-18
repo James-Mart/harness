@@ -12,12 +12,12 @@ import {
 
 import { resolveContainmentParent } from "@/authoring/containment";
 import type { HarnessFlowNode } from "@/components/canvas/flowTypes";
-import { reparentNode, type Harness } from "@/model";
+import { reparentNode, setNodePosition, type Harness } from "@/model";
 
 /**
  * Ephemeral React Flow positions during a node drag, committed to harness
- * containment on drag-stop. Selection stamping is owned by
- * `useCanvasSelection`.
+ * containment + top-level placement on drag-stop. Selection stamping is owned
+ * by `useCanvasSelection`.
  */
 export function useContainmentDragDraft(
   flowNodes: HarnessFlowNode[],
@@ -55,7 +55,16 @@ export function useContainmentDragDraft(
       // Controlled positions live in dragNodes — not RF's callback node list.
       const geometry = dragNodes ?? flowNodes;
       const parentId = resolveContainmentParent(node.id, geometry);
-      setHarness((current) => reparentNode(current, node.id, parentId));
+      const dragged = geometry.find((entry) => entry.id === node.id);
+      setHarness((current) => {
+        let next = reparentNode(current, node.id, parentId);
+        // Top-level nodes persist flow-space placement so they do not snap
+        // back to auto-layout / a stale create-time position after drag.
+        if (parentId === undefined && dragged) {
+          next = setNodePosition(next, node.id, dragged.position);
+        }
+        return next;
+      });
       setDragNodes(null);
     },
     [dragNodes, flowNodes, setHarness],
