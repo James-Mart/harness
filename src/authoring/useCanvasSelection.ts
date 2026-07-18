@@ -9,26 +9,29 @@ function sameIdList(a: readonly string[], b: readonly string[]): boolean {
   return a.every((id, index) => id === b[index]);
 }
 
-function withNodeSelection(
-  nodes: HarnessFlowNode[],
-  selectedNodeIds: readonly string[],
-): HarnessFlowNode[] {
-  const selected = new Set(selectedNodeIds);
-  return nodes.map((node) => ({
-    ...node,
-    selected: selected.has(node.id),
-  }));
-}
+type Selectable = { id: string; selected?: boolean };
 
-function withEdgeSelection(
-  edges: Edge[],
-  selectedEdgeIds: readonly string[],
-): Edge[] {
-  const selected = new Set(selectedEdgeIds);
-  return edges.map((edge) => ({
-    ...edge,
-    selected: selected.has(edge.id),
-  }));
+/**
+ * Stamp `selected` without allocating a new object when the flag is
+ * unchanged. RF treats a new node/edge identity without `measured` as a
+ * re-init, so every drag-frame remap must preserve references for
+ * untouched items.
+ */
+export function stampSelectedPreservingIdentity<T extends Selectable>(
+  items: T[],
+  selectedIds: readonly string[],
+): T[] {
+  const selected = new Set(selectedIds);
+  let changed = false;
+  const next = items.map((item) => {
+    const isSelected = selected.has(item.id);
+    if (!!item.selected === isSelected) {
+      return item;
+    }
+    changed = true;
+    return { ...item, selected: isSelected };
+  });
+  return changed ? next : items;
 }
 
 /**
@@ -60,11 +63,11 @@ export function useCanvasSelection(
   ]);
 
   const nodes = useMemo(
-    () => withNodeSelection(flowNodes, selectedNodeIds),
+    () => stampSelectedPreservingIdentity(flowNodes, selectedNodeIds),
     [flowNodes, selectedNodeIds],
   );
   const edges = useMemo(
-    () => withEdgeSelection(flowEdges, selectedEdgeIds),
+    () => stampSelectedPreservingIdentity(flowEdges, selectedEdgeIds),
     [flowEdges, selectedEdgeIds],
   );
 
