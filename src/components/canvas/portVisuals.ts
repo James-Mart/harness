@@ -1,25 +1,9 @@
+import { schemaStructuralKey } from "@/model/schema";
 import type { JSONSchema, Port } from "@/model/types";
-
-/**
- * Display key for a port's schema — prefers `title`, then structural type.
- * Used for labels / tooltips, not accent colour.
- */
-export function schemaTypeKey(schema: JSONSchema): string {
-  if (typeof schema.title === "string" && schema.title.length > 0) {
-    return schema.title;
-  }
-  return schemaAccentFamily(schema);
-}
 
 /** Structural JSON-Schema family used for accent colour. */
 export function schemaAccentFamily(schema: JSONSchema): string {
-  if (Array.isArray(schema.enum) && schema.enum.length > 0) {
-    return "enum";
-  }
-  if (typeof schema.type === "string") {
-    return schema.type;
-  }
-  return "any";
+  return schemaStructuralKey(schema);
 }
 
 /**

@@ -4,9 +4,9 @@ import { FLOW_LAYOUT } from "@/components/canvas/layoutTokens";
 import {
   portsByDirection,
   schemaAccent,
-  schemaTypeKey,
 } from "@/components/canvas/portVisuals";
 import { cn } from "@/lib/utils";
+import { schemaCompatKey } from "@/model/schema";
 import type { Port } from "@/model/types";
 
 type NodePortHandlesProps = {
@@ -68,7 +68,7 @@ function PortHandle({
   showLabel,
 }: PortHandleProps) {
   const accent = schemaAccent(port.schema);
-  const typeName = schemaTypeKey(port.schema);
+  const typeName = schemaCompatKey(port.schema);
   const isInput = port.direction === "in";
   const top = `${topPx}px`;
   const labelInset = `${FLOW_LAYOUT.portLabelInsetX}px`;

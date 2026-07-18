@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { harnessToFlowNodes } from "@/components/canvas/harnessToFlow";
+import {
+  harnessToFlowEdges,
+  harnessToFlowNodes,
+} from "@/components/canvas/harnessToFlow";
 import { FLOW_LAYOUT } from "@/components/canvas/layoutTokens";
 import {
   CURRENT_ITEM_PORT_ID,
   createBaseSeedHarness,
+  dataEdgeId,
   mockSchema,
 } from "@/model";
 
@@ -62,5 +66,34 @@ describe("harnessToFlowNodes", () => {
     expect(worker?.style?.height).toBeGreaterThan(
       FLOW_LAYOUT.leafMinHeight - 1,
     );
+  });
+});
+
+describe("harnessToFlowEdges", () => {
+  it("maps seeded data wires to bezier flow edges with stable ids", () => {
+    const harness = createBaseSeedHarness();
+    const edges = harnessToFlowEdges(harness);
+    expect(edges).toHaveLength(2);
+    expect(edges.map((edge) => edge.id).sort()).toEqual(
+      [
+        "data:loop/$currentItem->worker/task",
+        "data:source/items->loop/items",
+      ].sort(),
+    );
+
+    const items = edges.find(
+      (edge) =>
+        edge.source === "source" &&
+        edge.sourceHandle === "items" &&
+        edge.target === "loop",
+    );
+    expect(items?.id).toBe(
+      dataEdgeId(
+        { node: "source", port: "items" },
+        { node: "loop", port: "items" },
+      ),
+    );
+    expect(items?.type).toBe("default");
+    expect(items?.style).toMatchObject({ strokeWidth: 2 });
   });
 });

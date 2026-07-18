@@ -11,19 +11,18 @@ import {
   portsByDirection,
   schemaAccent,
   schemaAccentFamily,
-  schemaTypeKey,
 } from "@/components/canvas/portVisuals";
-import { mockSchema } from "@/model";
+import { mockSchema, schemaCompatKey } from "@/model";
 
 describe("port layout helpers", () => {
   it("derives display keys from title, accents from structural type", () => {
-    expect(schemaTypeKey(mockSchema("string"))).toBe("string");
-    expect(schemaTypeKey(mockSchema("task"))).toBe("Task");
-    expect(schemaTypeKey(mockSchema("taskList"))).toBe("Task[]");
+    expect(schemaCompatKey(mockSchema("string"))).toBe("string");
+    expect(schemaCompatKey(mockSchema("task"))).toBe("Task");
+    expect(schemaCompatKey(mockSchema("taskList"))).toBe("Task[]");
     expect(schemaAccentFamily(mockSchema("task"))).toBe("object");
     expect(schemaAccentFamily(mockSchema("taskList"))).toBe("array");
     expect(schemaAccentFamily(mockSchema("gateDecision"))).toBe("enum");
-    expect(schemaTypeKey(mockSchema("any"))).toBe("any");
+    expect(schemaCompatKey(mockSchema("any"))).toBe("any");
   });
 
   it("maps structural schema families to accent tokens", () => {

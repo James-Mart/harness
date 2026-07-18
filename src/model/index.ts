@@ -18,6 +18,9 @@ export {
   MOCK_SCHEMAS,
   itemSchemaOf,
   mockSchema,
+  schemaCompatKey,
+  schemaStructuralKey,
+  schemasCompatible,
   type MockSchemaName,
 } from "@/model/schema";
 export { createBaseSeedHarness } from "@/model/seed";
@@ -34,6 +37,13 @@ export {
   type NodeId,
   type Port,
   type PortId,
+  type PortRef,
   type RunConfig,
   type Source,
 } from "@/model/types";
+export {
+  canConnectDataWire,
+  connectDataWire,
+  dataEdgeId,
+  findPort,
+} from "@/model/wiring";

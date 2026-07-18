@@ -1,3 +1,5 @@
+import type { Edge as FlowEdge } from "@xyflow/react";
+
 import type {
   ContainerFlowNode,
   HarnessFlowNode,
@@ -7,7 +9,11 @@ import {
   FLOW_LAYOUT,
   leafHeightForPortCount,
 } from "@/components/canvas/layoutTokens";
-import { portsByDirection } from "@/components/canvas/portVisuals";
+import {
+  portsByDirection,
+  schemaAccent,
+} from "@/components/canvas/portVisuals";
+import { dataEdgeId, findPort } from "@/model/wiring";
 import type { Harness, Node as HarnessNode, NodeId, Port } from "@/model/types";
 
 type Size = { width: number; height: number };
@@ -179,4 +185,26 @@ export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
   }
 
   return out;
+}
+
+/** React Flow edges for harness data wires (bezier, coloured by source type). */
+export function harnessToFlowEdges(harness: Harness): FlowEdge[] {
+  return harness.edges
+    .filter((edge) => edge.kind === "data")
+    .map((edge) => {
+      const fromPort = findPort(harness, edge.from);
+      const stroke = fromPort
+        ? schemaAccent(fromPort.schema)
+        : "var(--muted-foreground)";
+      return {
+        id: dataEdgeId(edge.from, edge.to),
+        source: edge.from.node,
+        sourceHandle: edge.from.port,
+        target: edge.to.node,
+        targetHandle: edge.to.port,
+        type: "default",
+        style: { stroke, strokeWidth: 2 },
+        data: { kind: "data" as const },
+      };
+    });
 }
