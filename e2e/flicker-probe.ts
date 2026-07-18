@@ -11,6 +11,12 @@ export type FlickerMetrics = {
   maxHidden: number;
 };
 
+/** Idle baseline + interaction metrics returned by {@link withFlickerProbe}. */
+export type FlickerProbeResult = {
+  interaction: FlickerMetrics;
+  idle: FlickerMetrics;
+};
+
 const DEFAULT_SELECTORS = [".react-flow__node"];
 const IDLE_FRAME_COUNT = 20;
 const FLICKER_PROBE_KEY = "__flickerProbe";
@@ -225,7 +231,7 @@ export async function withFlickerProbe(
   page: Page,
   interaction: () => Promise<void>,
   options?: FlickerProbeOptions,
-): Promise<{ interaction: FlickerMetrics; idle: FlickerMetrics }> {
+): Promise<FlickerProbeResult> {
   const selectors = options?.selectors ?? DEFAULT_SELECTORS;
 
   await ensureFlickerProbe(page);
