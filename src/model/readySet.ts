@@ -39,6 +39,32 @@ export function appendToReadySet(
   return { ...pool, ready: [...pool.ready, ...added] };
 }
 
+/** Move the head of `ready` into `inFlight`. Returns null if ready is empty. */
+export function admitHead(
+  pool: ReadySet,
+): { pool: ReadySet; itemId: string } | null {
+  if (pool.ready.length === 0) return null;
+  const itemId = pool.ready[0]!;
+  return {
+    itemId,
+    pool: {
+      ready: pool.ready.slice(1),
+      inFlight: [...pool.inFlight, itemId],
+      done: pool.done,
+    },
+  };
+}
+
+/** Move an in-flight item into `done`. No-op if it is not in flight. */
+export function completeItem(pool: ReadySet, itemId: string): ReadySet {
+  if (!pool.inFlight.includes(itemId)) return pool;
+  return {
+    ready: pool.ready,
+    inFlight: pool.inFlight.filter((id) => id !== itemId),
+    done: [...pool.done, itemId],
+  };
+}
+
 /** Fixpoint: nothing ready and nothing in flight. */
 export function isFixpoint(pool: ReadySet): boolean {
   return pool.ready.length === 0 && pool.inFlight.length === 0;

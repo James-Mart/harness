@@ -70,9 +70,11 @@ export {
   type Source,
 } from "@/model/types";
 export {
+  admitHead,
   appendToReadySet,
   availableSlots,
   availableSlotsFor,
+  completeItem,
   createReadySet,
   effectiveConcurrency,
   isFixpoint,
