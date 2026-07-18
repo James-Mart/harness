@@ -6,14 +6,21 @@ import {
   type Edge,
   type IsValidConnection,
   type OnConnect,
+  type OnEdgesDelete,
   type OnNodeDrag,
   type OnNodesChange,
+  type OnNodesDelete,
   type OnSelectionChangeFunc,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 import type { HarnessFlowNode } from "@/components/canvas/flowTypes";
 import { harnessNodeTypes } from "@/components/canvas/nodeTypes";
+
+export type CanvasSelection = {
+  nodeIds: string[];
+  edgeIds: string[];
+};
 
 type HarnessCanvasProps = {
   nodes: HarnessFlowNode[];
@@ -23,7 +30,9 @@ type HarnessCanvasProps = {
   onNodeDragStop?: OnNodeDrag<HarnessFlowNode>;
   onConnect?: OnConnect;
   isValidConnection?: IsValidConnection;
-  onSelectionChange?: (nodeId: string | null) => void;
+  onSelectionChange?: (selection: CanvasSelection) => void;
+  onNodesDelete?: OnNodesDelete;
+  onEdgesDelete?: OnEdgesDelete;
 };
 
 export function HarnessCanvas({
@@ -35,11 +44,17 @@ export function HarnessCanvas({
   onConnect,
   isValidConnection,
   onSelectionChange,
+  onNodesDelete,
+  onEdgesDelete,
 }: HarnessCanvasProps) {
   const handleSelectionChange: OnSelectionChangeFunc = ({
-    nodes: selected,
+    nodes: selectedNodes,
+    edges: selectedEdges,
   }) => {
-    onSelectionChange?.(selected[0]?.id ?? null);
+    onSelectionChange?.({
+      nodeIds: selectedNodes.map((node) => node.id),
+      edgeIds: selectedEdges.map((edge) => edge.id),
+    });
   };
 
   return (
@@ -52,16 +67,19 @@ export function HarnessCanvas({
       onNodeDragStart={onNodeDragStart}
       onNodeDragStop={onNodeDragStop}
       onEdgesChange={() => {
-        /* Edges are derived from harness data wires. */
+        /* Edges are derived from harness data wires / appendsTo. */
       }}
       onConnect={onConnect}
       isValidConnection={isValidConnection}
       onSelectionChange={handleSelectionChange}
+      onNodesDelete={onNodesDelete}
+      onEdgesDelete={onEdgesDelete}
+      deleteKeyCode={["Backspace", "Delete"]}
       fitView={nodes.length > 0}
       nodesDraggable
       nodesConnectable
-      edgesFocusable={false}
       elementsSelectable
+      edgesFocusable
       connectionLineType={ConnectionLineType.Bezier}
       connectionLineStyle={{ strokeWidth: 2 }}
       defaultEdgeOptions={{ type: "default" }}

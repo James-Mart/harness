@@ -16,6 +16,7 @@ export {
 } from "@/model/instantiate";
 export { addCatalogNode } from "@/model/addNode";
 export { reparentNode } from "@/model/reparent";
+export { deleteSelection, removeEdges, removeNodes } from "@/model/remove";
 export {
   MOCK_SCHEMAS,
   itemSchemaOf,
@@ -72,6 +73,7 @@ export {
 } from "@/model/readySet";
 export {
   advisoryCuesForContainer,
+  appendEdgeId,
   assertWorkPoolInvariants,
   liveContainersWithoutAppender,
   nodesAppendingTo,

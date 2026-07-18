@@ -3,6 +3,11 @@ import type { ContainerNode, Harness, LeafNode, NodeId } from "@/model/types";
 /** Non-blocking work-pool advisory cue kinds. */
 export type WorkPoolAdvisoryCue = "missing-appender" | "missing-fixpoint";
 
+/** Stable id for a derived fan-out append edge (canvas + delete). */
+export function appendEdgeId(from: NodeId, to: NodeId): string {
+  return `append:${from}->${to}`;
+}
+
 /** Body leaves that declare fan-out append into `containerId`. */
 export function nodesAppendingTo(
   harness: Harness,

@@ -14,7 +14,7 @@ describe("editor layout", () => {
     expect(container.querySelector(".react-flow")).toBeTruthy();
     expect(
       screen.getByText(
-        "Select a node to edit its widgets and see its typed signature.",
+        "Select a node to see its typed signature and structural parameters.",
       ),
     ).toBeInTheDocument();
   });

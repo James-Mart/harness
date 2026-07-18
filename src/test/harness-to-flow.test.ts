@@ -9,7 +9,7 @@ import {
   FLOW_LAYOUT,
   containerChromeHeaderHeight,
 } from "@/components/canvas/layoutTokens";
-import { appendEdgeId } from "@/components/canvas/workpoolVisuals";
+import { appendEdgeId } from "@/model";
 import {
   CURRENT_ITEM_PORT_ID,
   EXEC_IN_HANDLE,

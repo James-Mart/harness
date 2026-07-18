@@ -1,6 +1,6 @@
 import { MarkerType, type Edge as FlowEdge } from "@xyflow/react";
 
-import type { WorkPoolAdvisoryCue } from "@/model/workpoolGraph";
+import { appendEdgeId, type WorkPoolAdvisoryCue } from "@/model/workpoolGraph";
 import type { Concurrency, LeafNode, NodeId } from "@/model/types";
 
 /** Short label for a container concurrency policy badge. */
@@ -24,11 +24,6 @@ export function advisoryCueLabel(cue: WorkPoolAdvisoryCue): string {
 /** Stable test id for a work-pool advisory cue badge. */
 export function advisoryCueTestId(cue: WorkPoolAdvisoryCue): string {
   return `cue-${cue}`;
-}
-
-/** Stable React Flow edge id for a fan-out append relationship. */
-export function appendEdgeId(from: string, to: string): string {
-  return `append:${from}->${to}`;
 }
 
 /** Dashed animated React Flow edge for a leaf's `appendsTo` relationship. */

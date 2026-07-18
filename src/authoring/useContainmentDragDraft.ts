@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useMemo,
   useState,
   type Dispatch,
   type SetStateAction,
@@ -15,23 +14,13 @@ import { resolveContainmentParent } from "@/authoring/containment";
 import type { HarnessFlowNode } from "@/components/canvas/flowTypes";
 import { reparentNode, type Harness } from "@/model";
 
-function withSelection(
-  nodes: HarnessFlowNode[],
-  selectedNodeId: string | null,
-): HarnessFlowNode[] {
-  return nodes.map((node) => ({
-    ...node,
-    selected: node.id === selectedNodeId,
-  }));
-}
-
 /**
  * Ephemeral React Flow positions during a node drag, committed to harness
- * containment on drag-stop.
+ * containment on drag-stop. Selection stamping is owned by
+ * `useCanvasSelection`.
  */
 export function useContainmentDragDraft(
   flowNodes: HarnessFlowNode[],
-  selectedNodeId: string | null,
   setHarness: Dispatch<SetStateAction<Harness>>,
 ): {
   nodes: HarnessFlowNode[];
@@ -41,14 +30,11 @@ export function useContainmentDragDraft(
 } {
   const [dragNodes, setDragNodes] = useState<HarnessFlowNode[] | null>(null);
 
-  const nodes = useMemo(
-    () => withSelection(dragNodes ?? flowNodes, selectedNodeId),
-    [dragNodes, flowNodes, selectedNodeId],
-  );
+  const nodes = dragNodes ?? flowNodes;
 
   const onNodeDragStart = useCallback<OnNodeDrag<HarnessFlowNode>>(() => {
-    setDragNodes(withSelection(flowNodes, selectedNodeId));
-  }, [flowNodes, selectedNodeId]);
+    setDragNodes(flowNodes);
+  }, [flowNodes]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange<HarnessFlowNode>[]) => {
@@ -67,12 +53,12 @@ export function useContainmentDragDraft(
   const onNodeDragStop = useCallback<OnNodeDrag<HarnessFlowNode>>(
     (_event, node) => {
       // Controlled positions live in dragNodes — not RF's callback node list.
-      const geometry = dragNodes ?? withSelection(flowNodes, selectedNodeId);
+      const geometry = dragNodes ?? flowNodes;
       const parentId = resolveContainmentParent(node.id, geometry);
       setHarness((current) => reparentNode(current, node.id, parentId));
       setDragNodes(null);
     },
-    [dragNodes, flowNodes, selectedNodeId, setHarness],
+    [dragNodes, flowNodes, setHarness],
   );
 
   return { nodes, onNodeDragStart, onNodesChange, onNodeDragStop };

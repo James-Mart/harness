@@ -252,6 +252,7 @@ function toHarnessBoundaryFlowNode(
     type: "harness",
     position: { x: 0, y: 0 },
     draggable: false,
+    deletable: false,
     data: {
       title: harness.title,
       ports: harness.boundary,
