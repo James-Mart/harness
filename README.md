@@ -28,8 +28,8 @@ That path is enough to install, start the app, and complete a simulated run.
 
 Use the **Tracker** | **Eunomio** toggle in the header:
 
-| Seed | What you see |
-| ---- | ------------ |
+| Seed        | What you see                                          |
+| ----------- | ----------------------------------------------------- |
 | **Tracker** | Issue-tracker work loop (epic → branch → commit flow) |
 | **Eunomio** | PR-review harness (partition → planner → accept flow) |
 
@@ -48,24 +48,24 @@ Keep stepping until the status reads **fixpoint**.
 
 ## Other commands
 
-| Command           | Description                          |
-| ----------------- | ------------------------------------ |
-| `npm run build`   | Typecheck and build for production   |
-| `npm run preview` | Preview the production build locally |
-| `npm run test`    | Run unit tests (Vitest)              |
-| `npm run lint`    | Run ESLint and Prettier check        |
-| `npm run format`  | Format the tree with Prettier        |
+| Command           | Description                                  |
+| ----------------- | -------------------------------------------- |
+| `npm run build`   | Typecheck and build for production           |
+| `npm run preview` | Preview the production build locally         |
+| `npm run test`    | Run unit tests (Vitest) and e2e (Playwright) |
+| `npm run lint`    | Run ESLint and Prettier check                |
+| `npm run format`  | Format the tree with Prettier                |
 
 ## Appendix: dev-only demo harnesses
 
 In development, `?seed=` loads a **demo** harness and hides the Tracker | Eunomio toggle (only when a demo override is set):
 
-| URL query | Harness | Mock simulation |
-| --------- | ------- | --------------- |
-| `?seed=base` | Minimal foreach loop | Runnable script |
-| `?seed=workpool` | Work-pool fan-out | Runnable script |
-| `?seed=branching` | Branching foreach | Runnable script |
-| `?seed=wiring-cues` | Advisory wiring cues | Visualization only (empty script → instant fixpoint) |
+| URL query             | Harness                   | Mock simulation                                      |
+| --------------------- | ------------------------- | ---------------------------------------------------- |
+| `?seed=base`          | Minimal foreach loop      | Runnable script                                      |
+| `?seed=workpool`      | Work-pool fan-out         | Runnable script                                      |
+| `?seed=branching`     | Branching foreach         | Runnable script                                      |
+| `?seed=wiring-cues`   | Advisory wiring cues      | Visualization only (empty script → instant fixpoint) |
 | `?seed=workpool-cues` | Work-pool validation cues | Visualization only (empty script → instant fixpoint) |
 
 Example: `http://localhost:5173/?seed=workpool`
