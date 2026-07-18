@@ -33,11 +33,10 @@ import type {
   NodePosition,
   Port,
 } from "@/model/types";
+import type { AdvisoryCue } from "@/model/advisoryCueTypes";
+import { wiringAdvisoryCues } from "@/model/validationCues";
 import { dataEdgeId, findPort } from "@/model/wiring";
-import {
-  workPoolAdvisoryCues,
-  type WorkPoolAdvisoryCue,
-} from "@/model/workpoolGraph";
+import { workPoolAdvisoryCues } from "@/model/workpoolGraph";
 
 type Size = { width: number; height: number };
 
@@ -49,8 +48,8 @@ type AppendIndex = {
 };
 
 /** Node conversion index — append data plus precomputed advisory cues. */
-type WorkPoolNodeIndex = AppendIndex & {
-  cuesByContainer: Map<NodeId, WorkPoolAdvisoryCue[]>;
+type FlowNodeIndex = AppendIndex & {
+  advisoryCuesByNode: Map<NodeId, readonly AdvisoryCue[]>;
 };
 
 function buildAppendIndex(harness: Harness): AppendIndex {
@@ -68,18 +67,27 @@ function buildAppendIndex(harness: Harness): AppendIndex {
   };
 }
 
-function buildWorkPoolNodeIndex(harness: Harness): WorkPoolNodeIndex {
+function buildFlowNodeIndex(harness: Harness): FlowNodeIndex {
+  const wiring = wiringAdvisoryCues(harness);
+  const workPool = workPoolAdvisoryCues(harness);
+  const advisoryCuesByNode = new Map<NodeId, readonly AdvisoryCue[]>();
+  for (const id of new Set([...wiring.keys(), ...workPool.keys()])) {
+    advisoryCuesByNode.set(id, [
+      ...(wiring.get(id) ?? []),
+      ...(workPool.get(id) ?? []),
+    ]);
+  }
   return {
     ...buildAppendIndex(harness),
-    cuesByContainer: workPoolAdvisoryCues(harness),
+    advisoryCuesByNode,
   };
 }
 
 function cuesFor(
   nodeId: NodeId,
-  index: WorkPoolNodeIndex,
-): WorkPoolAdvisoryCue[] {
-  return index.cuesByContainer.get(nodeId) ?? [];
+  index: FlowNodeIndex,
+): readonly AdvisoryCue[] {
+  return index.advisoryCuesByNode.get(nodeId) ?? [];
 }
 
 function childrenOf(nodes: HarnessNode[], parentId: string): HarnessNode[] {
@@ -89,7 +97,7 @@ function childrenOf(nodes: HarnessNode[], parentId: string): HarnessNode[] {
 function leafSize(
   ports: readonly Port[],
   execOutCount: number,
-  hasFanOutMarker = false,
+  options: { hasFanOutMarker?: boolean; hasAdvisoryCues?: boolean } = {},
 ): Size {
   const { inputs, outputs } = portsByDirection(ports);
   return {
@@ -97,7 +105,7 @@ function leafSize(
     height: leafHeightForPortCount(
       Math.max(inputs.length, outputs.length),
       execOutCount,
-      { hasFanOutMarker },
+      options,
     ),
   };
 }
@@ -142,18 +150,17 @@ function measureTree(
   harness: Harness,
   node: HarnessNode,
   sizes: Map<NodeId, Size>,
-  index: WorkPoolNodeIndex,
+  index: FlowNodeIndex,
 ): Size {
   if (node.kind === "leaf") {
     const execOutCount = Math.max(
       1,
       execOutBranchesForNode(harness, node).length,
     );
-    const size = leafSize(
-      node.ports,
-      execOutCount,
-      node.appendsTo !== undefined,
-    );
+    const size = leafSize(node.ports, execOutCount, {
+      hasFanOutMarker: node.appendsTo !== undefined,
+      hasAdvisoryCues: cuesFor(node.id, index).length > 0,
+    });
     sizes.set(node.id, size);
     return size;
   }
@@ -203,7 +210,7 @@ function toLeafFlowNode(
   node: Extract<HarnessNode, { kind: "leaf" }>,
   position: NodePosition,
   size: Size,
-  index: AppendIndex,
+  index: FlowNodeIndex,
   parentId?: string,
 ): LeafFlowNode {
   const appendTarget =
@@ -219,6 +226,7 @@ function toLeafFlowNode(
       catalogType: node.type,
       ports: node.ports,
       execOutBranches: execOutBranchesForNode(harness, node),
+      advisoryCues: cuesFor(node.id, index),
       ...(node.isGate
         ? {
             isGate: true,
@@ -244,7 +252,7 @@ function toContainerFlowNode(
   node: Extract<HarnessNode, { kind: "container" }>,
   position: NodePosition,
   size: Size,
-  index: WorkPoolNodeIndex,
+  index: FlowNodeIndex,
   parentId?: string,
 ): ContainerFlowNode {
   return {
@@ -292,7 +300,7 @@ function positionSubtree(
   position: NodePosition,
   parentId: string | undefined,
   sizes: Map<NodeId, Size>,
-  index: WorkPoolNodeIndex,
+  index: FlowNodeIndex,
   out: HarnessFlowNode[],
 ): void {
   const size = sizes.get(node.id);
@@ -336,7 +344,7 @@ function positionSubtree(
  * graph nodes sit in its body left-to-right.
  */
 export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
-  const index = buildWorkPoolNodeIndex(harness);
+  const index = buildFlowNodeIndex(harness);
   const roots = harness.nodes.filter((node) => node.parentId === undefined);
   const sizes = new Map<NodeId, Size>();
   for (const root of roots) {

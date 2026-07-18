@@ -101,6 +101,45 @@ export function createWorkPoolSeedHarness(): Harness {
 }
 
 /**
+ * Graph that intentionally trips wiring advisory cues: an unwired required
+ * input, and an input with two data wires (one-wire-per-input violation).
+ * Used by cue detection/render tests.
+ */
+export function createWiringCueDemoHarness(): Harness {
+  const sourceA = instantiateFromCatalog("listSource", { id: "sourceA" });
+  const sourceB = instantiateFromCatalog("listSource", { id: "sourceB" });
+  const multiWire = instantiateFromCatalog("foreach", {
+    id: "multiWire",
+    title: "Multi-wire foreach",
+  });
+  const unwired = instantiateFromCatalog("implementor", {
+    id: "unwired",
+    title: "Unwired implementor",
+  });
+
+  return {
+    id: "wiring-cue-demo",
+    title: "Wiring cue demo",
+    boundary: baseSeedBoundary(),
+    nodes: [sourceA, sourceB, multiWire, unwired],
+    edges: [
+      {
+        kind: "data",
+        from: { node: sourceA.id, port: "items" },
+        to: { node: multiWire.id, port: multiWire.iterablePortId },
+      },
+      {
+        kind: "data",
+        from: { node: sourceB.id, port: "items" },
+        to: { node: multiWire.id, port: multiWire.iterablePortId },
+      },
+      { kind: "exec", from: sourceA.id, to: multiWire.id },
+    ],
+    runConfig: structuredClone(EMPTY_RUN_CONFIG),
+  };
+}
+
+/**
  * Live work-pools that intentionally trip advisory cues: one with no
  * appender, one missing a fixpoint end. Used by cue detection/render tests.
  */
@@ -148,6 +187,231 @@ export function createWorkPoolCueDemoHarness(): Harness {
     ],
     runConfig: structuredClone(EMPTY_RUN_CONFIG),
   };
+}
+
+/** Stable node ids for {@link createTrackerSeedHarness} — shared with the sim script. */
+export const TRACKER_NODE_IDS = {
+  source: "source",
+  epic: "epic",
+  storyStart: "storyStart",
+  taskPool: "taskPool",
+  worker: "worker",
+  storyFinish: "storyFinish",
+  epicFinish: "epicFinish",
+} as const;
+
+export const TRACKER_HARNESS_ID = "tracker-seed";
+
+/**
+ * Tracker harness: a recursive `Epic` story work-pool (parallel, live source,
+ * fixpoint end) whose body runs a `story.start` hook, a nested **sequential**
+ * `Task` container (the worker loop), and a `story.finish` hook that appends
+ * stacked child stories back into the live Epic pool (recursive fan-out).
+ * `epic.finish` runs once the pool reaches fixpoint. This is the issue-tracker
+ * work loop expressed in the everything-is-a-node model.
+ */
+export function createTrackerSeedHarness(): Harness {
+  const ids = TRACKER_NODE_IDS;
+  const source = instantiateFromCatalog("listSource", { id: ids.source });
+  const epic = instantiateFromCatalog("workPool", {
+    id: ids.epic,
+    title: "Epic",
+  });
+  const storyStart = instantiateFromCatalog("implementor", {
+    id: ids.storyStart,
+    title: "story.start",
+    parentId: epic.id,
+  });
+  const taskPool = instantiateFromCatalog("foreach", {
+    id: ids.taskPool,
+    title: "Task",
+    parentId: epic.id,
+  });
+  const worker = instantiateFromCatalog("implementor", {
+    id: ids.worker,
+    parentId: taskPool.id,
+  });
+  const storyFinish = instantiateFromCatalog("fanOut", {
+    id: ids.storyFinish,
+    title: "story.finish",
+    parentId: epic.id,
+    appendsTo: epic.id,
+  });
+  const epicFinish = instantiateFromCatalog("implementor", {
+    id: ids.epicFinish,
+    title: "epic.finish",
+  });
+
+  const harness: Harness = {
+    id: TRACKER_HARNESS_ID,
+    title: "Tracker harness",
+    boundary: baseSeedBoundary(),
+    nodes: [
+      source,
+      epic,
+      storyStart,
+      taskPool,
+      worker,
+      storyFinish,
+      epicFinish,
+    ],
+    edges: [
+      {
+        kind: "data",
+        from: { node: source.id, port: "items" },
+        to: { node: epic.id, port: epic.iterablePortId },
+      },
+      {
+        kind: "data",
+        from: { node: epic.id, port: CURRENT_ITEM_PORT_ID },
+        to: { node: storyStart.id, port: "task" },
+      },
+      {
+        kind: "data",
+        from: { node: epic.id, port: CURRENT_ITEM_PORT_ID },
+        to: { node: storyFinish.id, port: "task" },
+      },
+      {
+        kind: "data",
+        from: { node: taskPool.id, port: CURRENT_ITEM_PORT_ID },
+        to: { node: worker.id, port: "task" },
+      },
+      { kind: "exec", from: source.id, to: epic.id },
+      { kind: "exec", from: epic.id, to: storyStart.id },
+      { kind: "exec", from: storyStart.id, to: taskPool.id },
+      { kind: "exec", from: taskPool.id, to: worker.id },
+      { kind: "exec", from: taskPool.id, to: storyFinish.id },
+      { kind: "exec", from: epic.id, to: epicFinish.id },
+    ],
+    runConfig: structuredClone(EMPTY_RUN_CONFIG),
+  };
+  assertWorkPoolInvariants(harness);
+  return harness;
+}
+
+/** Stable node ids for {@link createEunomioSeedHarness} — shared with the sim script. */
+export const EUNOMIO_NODE_IDS = {
+  source: "source",
+  partition: "partition",
+  planner: "planner",
+  splitGate: "splitGate",
+  constructor: "constructor",
+  accept: "accept",
+  leaf: "leaf",
+  reorder: "reorder",
+  shaver: "shaver",
+} as const;
+
+export const EUNOMIO_HARNESS_ID = "eunomio-seed";
+
+/**
+ * Eunomio harness: a recursive `Partition` edge work-pool (parallel, live,
+ * fixpoint) whose body runs `Planner → (split? Constructor → Accept : Leaf)`.
+ * Accept appends two child edges back into the live pool. After fixpoint,
+ * `Reorder → Shaver` run as a plain exec sequence. Expresses Review History
+ * Synthesis's partition tree in the everything-is-a-node model.
+ */
+export function createEunomioSeedHarness(): Harness {
+  const ids = EUNOMIO_NODE_IDS;
+  const source = instantiateFromCatalog("listSource", { id: ids.source });
+  const partition = instantiateFromCatalog("workPool", {
+    id: ids.partition,
+    title: "Partition",
+  });
+  const planner = instantiateFromCatalog("implementor", {
+    id: ids.planner,
+    title: "Planner",
+    parentId: partition.id,
+  });
+  const splitGate = instantiateFromCatalog("gate", {
+    id: ids.splitGate,
+    title: "split?",
+    parentId: partition.id,
+  });
+  const constructor = instantiateFromCatalog("implementor", {
+    id: ids.constructor,
+    title: "Constructor",
+    parentId: partition.id,
+  });
+  const accept = instantiateFromCatalog("fanOut", {
+    id: ids.accept,
+    title: "Accept",
+    parentId: partition.id,
+    appendsTo: partition.id,
+  });
+  const leaf = instantiateFromCatalog("implementor", {
+    id: ids.leaf,
+    title: "Leaf",
+    parentId: partition.id,
+  });
+  const reorder = instantiateFromCatalog("implementor", {
+    id: ids.reorder,
+    title: "Reorder",
+  });
+  const shaver = instantiateFromCatalog("implementor", {
+    id: ids.shaver,
+    title: "Shaver",
+  });
+
+  const harness: Harness = {
+    id: EUNOMIO_HARNESS_ID,
+    title: "Eunomio harness",
+    boundary: baseSeedBoundary(),
+    nodes: [
+      source,
+      partition,
+      planner,
+      splitGate,
+      constructor,
+      accept,
+      leaf,
+      reorder,
+      shaver,
+    ],
+    edges: [
+      {
+        kind: "data",
+        from: { node: source.id, port: "items" },
+        to: { node: partition.id, port: partition.iterablePortId },
+      },
+      {
+        kind: "data",
+        from: { node: partition.id, port: CURRENT_ITEM_PORT_ID },
+        to: { node: planner.id, port: "task" },
+      },
+      {
+        kind: "data",
+        from: { node: planner.id, port: "result" },
+        to: { node: splitGate.id, port: "prompt" },
+      },
+      {
+        kind: "data",
+        from: { node: partition.id, port: CURRENT_ITEM_PORT_ID },
+        to: { node: constructor.id, port: "task" },
+      },
+      {
+        kind: "data",
+        from: { node: partition.id, port: CURRENT_ITEM_PORT_ID },
+        to: { node: accept.id, port: "task" },
+      },
+      {
+        kind: "data",
+        from: { node: partition.id, port: CURRENT_ITEM_PORT_ID },
+        to: { node: leaf.id, port: "task" },
+      },
+      { kind: "exec", from: source.id, to: partition.id },
+      { kind: "exec", from: partition.id, to: planner.id },
+      { kind: "exec", from: planner.id, to: splitGate.id },
+      { kind: "exec", from: splitGate.id, to: constructor.id, branch: "ok" },
+      { kind: "exec", from: constructor.id, to: accept.id },
+      { kind: "exec", from: splitGate.id, to: leaf.id, branch: "deny" },
+      { kind: "exec", from: partition.id, to: reorder.id },
+      { kind: "exec", from: reorder.id, to: shaver.id },
+    ],
+    runConfig: structuredClone(EMPTY_RUN_CONFIG),
+  };
+  assertWorkPoolInvariants(harness);
+  return harness;
 }
 
 /**

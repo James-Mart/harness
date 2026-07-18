@@ -21,21 +21,25 @@ export const FLOW_LAYOUT = {
   /** Title + subtitle + single-line work-pool badge row. */
   containerHeaderHeight: 72,
   /** Extra header room when advisory cue badges are present. */
-  containerCueRowHeight: 18,
+  advisoryCueRowHeight: 18,
   /** Vertical pad inside the container header port band. */
   containerHeaderPortPadY: 8,
   childGap: 12,
   topLevelGap: 48,
 } as const;
 
-export type LeafLayoutOptions = { hasFanOutMarker?: boolean };
+export type LeafLayoutOptions = {
+  hasFanOutMarker?: boolean;
+  hasAdvisoryCues?: boolean;
+};
 export type ContainerLayoutOptions = { hasAdvisoryCues?: boolean };
 
-/** Leaf title-band height, including optional fan-out marker line. */
+/** Leaf title-band height, including optional fan-out / cue rows. */
 export function leafTitleHeaderHeight(options: LeafLayoutOptions = {}): number {
   return (
     FLOW_LAYOUT.leafHeaderHeight +
-    (options.hasFanOutMarker ? FLOW_LAYOUT.leafFanOutMarkerHeight : 0)
+    (options.hasFanOutMarker ? FLOW_LAYOUT.leafFanOutMarkerHeight : 0) +
+    (options.hasAdvisoryCues ? FLOW_LAYOUT.advisoryCueRowHeight : 0)
   );
 }
 
@@ -45,7 +49,7 @@ export function containerChromeHeaderHeight(
 ): number {
   return (
     FLOW_LAYOUT.containerHeaderHeight +
-    (options.hasAdvisoryCues ? FLOW_LAYOUT.containerCueRowHeight : 0)
+    (options.hasAdvisoryCues ? FLOW_LAYOUT.advisoryCueRowHeight : 0)
   );
 }
 
@@ -162,9 +166,7 @@ export function leafHeightForPortCount(
 ): number {
   const rows = Math.max(1, portRows);
   const header = leafTitleHeaderHeight(options);
-  const headerExtra = options.hasFanOutMarker
-    ? FLOW_LAYOUT.leafFanOutMarkerHeight
-    : 0;
+  const headerExtra = header - FLOW_LAYOUT.leafHeaderHeight;
   return Math.max(
     FLOW_LAYOUT.leafMinHeight + headerExtra,
     header +

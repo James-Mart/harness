@@ -1,11 +1,11 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import App from "@/App";
 import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import { EditorLayout } from "@/components/layout/EditorLayout";
 import {
   CURRENT_ITEM_PORT_ID,
+  createBaseSeedHarness,
   createBranchingSeedHarness,
   createWorkPoolSeedHarness,
 } from "@/model";
@@ -16,7 +16,7 @@ describe("canvas render", () => {
   });
 
   it("renders seeded leaf and container nodes with typed ports", () => {
-    render(<App />);
+    render(<EditorLayout initialHarness={createBaseSeedHarness()} />);
 
     const canvas = screen.getByTestId("editor-canvas");
     const harness = within(canvas).getByTestId(
@@ -138,7 +138,7 @@ describe("canvas render", () => {
   });
 
   it("renders snapshot foreach with sequential badge and no fixpoint", () => {
-    render(<App />);
+    render(<EditorLayout initialHarness={createBaseSeedHarness()} />);
 
     const canvas = screen.getByTestId("editor-canvas");
     const loop = within(canvas).getByTestId("flow-node-loop");

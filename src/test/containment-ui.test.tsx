@@ -1,7 +1,6 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import App from "@/App";
 import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import { harnessToFlowNodes } from "@/components/canvas/harnessToFlow";
 import { EditorLayout } from "@/components/layout/EditorLayout";
@@ -38,8 +37,8 @@ describe("containment render smoke", () => {
     ).toBeUndefined();
   });
 
-  it("renders the default seed with worker under foreach", () => {
-    render(<App />);
+  it("renders the base seed with worker under foreach", () => {
+    render(<EditorLayout initialHarness={createBaseSeedHarness()} />);
 
     const canvas = screen.getByTestId("editor-canvas");
     expect(within(canvas).getByTestId("flow-node-worker")).toBeInTheDocument();
