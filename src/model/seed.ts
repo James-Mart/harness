@@ -39,3 +39,51 @@ export function createBaseSeedHarness(): Harness {
     runConfig: structuredClone(EMPTY_RUN_CONFIG),
   };
 }
+
+/**
+ * Base seed plus a gate with ok/deny exec branches (and validators).
+ * Used by exec-edge tests — not the default editor seed.
+ */
+export function createBranchingSeedHarness(): Harness {
+  const base = createBaseSeedHarness();
+  const gate = instantiateFromCatalog("gate", {
+    id: "gate",
+    parentId: "loop",
+  });
+  const onOk = instantiateFromCatalog("validator", {
+    id: "onOk",
+    parentId: "loop",
+  });
+  const onDeny = instantiateFromCatalog("validator", {
+    id: "onDeny",
+    parentId: "loop",
+  });
+
+  return {
+    ...base,
+    id: "branching-seed",
+    title: "Branching seed harness",
+    nodes: [...base.nodes, gate, onOk, onDeny],
+    edges: [
+      ...base.edges,
+      {
+        kind: "data",
+        from: { node: "worker", port: "result" },
+        to: { node: gate.id, port: "prompt" },
+      },
+      {
+        kind: "data",
+        from: { node: "loop", port: CURRENT_ITEM_PORT_ID },
+        to: { node: onOk.id, port: "task" },
+      },
+      {
+        kind: "data",
+        from: { node: "loop", port: CURRENT_ITEM_PORT_ID },
+        to: { node: onDeny.id, port: "task" },
+      },
+      { kind: "exec", from: "worker", to: gate.id },
+      { kind: "exec", from: gate.id, to: onOk.id, branch: "ok" },
+      { kind: "exec", from: gate.id, to: onDeny.id, branch: "deny" },
+    ],
+  };
+}

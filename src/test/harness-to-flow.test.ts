@@ -7,8 +7,13 @@ import {
 import { FLOW_LAYOUT } from "@/components/canvas/layoutTokens";
 import {
   CURRENT_ITEM_PORT_ID,
+  EXEC_IN_HANDLE,
+  EXEC_OUT_HANDLE,
   createBaseSeedHarness,
+  createBranchingSeedHarness,
   dataEdgeId,
+  execEdgeId,
+  execOutHandleId,
   mockSchema,
 } from "@/model";
 
@@ -27,6 +32,7 @@ describe("harnessToFlowNodes", () => {
     expect(source?.parentId).toBeUndefined();
     expect(source?.data.title).toBe("List source");
     expect(source?.data.catalogType).toBe("listSource");
+    expect(source?.data.execOutBranches).toEqual([undefined]);
     expect(source?.data.ports).toEqual(
       harness.nodes.find((node) => node.id === "source")!.ports,
     );
@@ -40,6 +46,7 @@ describe("harnessToFlowNodes", () => {
       iterablePortId: "items",
       sourceKind: "snapshot",
     });
+    expect(loop?.data.execOutBranches).toEqual([undefined]);
     expect(loop?.data.ports.map((port) => port.id)).toEqual([
       "items",
       CURRENT_ITEM_PORT_ID,
@@ -67,14 +74,26 @@ describe("harnessToFlowNodes", () => {
       FLOW_LAYOUT.leafMinHeight - 1,
     );
   });
+
+  it("maps branching seed gate outs from wired exec edges", () => {
+    const harness = createBranchingSeedHarness();
+    const nodes = harnessToFlowNodes(harness);
+    const gate = nodes.find((node) => node.id === "gate");
+    expect(gate?.type).toBe("leaf");
+    expect(gate?.data.execOutBranches).toEqual(["ok", "deny"]);
+    if (gate?.type === "leaf") {
+      expect(gate.data.isGate).toBe(true);
+    }
+  });
 });
 
 describe("harnessToFlowEdges", () => {
   it("maps seeded data wires to bezier flow edges with stable ids", () => {
     const harness = createBaseSeedHarness();
     const edges = harnessToFlowEdges(harness);
-    expect(edges).toHaveLength(2);
-    expect(edges.map((edge) => edge.id).sort()).toEqual(
+    const dataEdges = edges.filter((edge) => edge.data?.kind === "data");
+    expect(dataEdges).toHaveLength(2);
+    expect(dataEdges.map((edge) => edge.id).sort()).toEqual(
       [
         "data:loop/$currentItem->worker/task",
         "data:source/items->loop/items",
@@ -95,5 +114,38 @@ describe("harnessToFlowEdges", () => {
     );
     expect(items?.type).toBe("default");
     expect(items?.style).toMatchObject({ strokeWidth: 2 });
+  });
+
+  it("maps exec edges as arrowed control lines distinct from data wires", () => {
+    const harness = createBranchingSeedHarness();
+    const edges = harnessToFlowEdges(harness);
+    const execEdges = edges.filter((edge) => edge.data?.kind === "exec");
+    expect(execEdges).toHaveLength(5);
+
+    const sequential = execEdges.find(
+      (edge) => edge.id === "exec:source->loop",
+    );
+    expect(sequential).toMatchObject({
+      source: "source",
+      sourceHandle: EXEC_OUT_HANDLE,
+      target: "loop",
+      targetHandle: EXEC_IN_HANDLE,
+      type: "smoothstep",
+    });
+    expect(sequential?.markerEnd).toBeTruthy();
+    expect(sequential?.label).toBeUndefined();
+
+    const ok = execEdges.find(
+      (edge) => edge.id === execEdgeId("gate", "onOk", "ok"),
+    );
+    expect(ok).toMatchObject({
+      source: "gate",
+      sourceHandle: execOutHandleId("ok"),
+      target: "onOk",
+      targetHandle: EXEC_IN_HANDLE,
+      label: "ok",
+      data: { kind: "exec", branch: "ok" },
+    });
+    expect(ok?.markerEnd).toBeTruthy();
   });
 });

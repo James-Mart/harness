@@ -6,6 +6,8 @@ export type LeafFlowData = {
   title: string;
   catalogType: string;
   ports: Port[];
+  /** Exec-out slots derived from harness edges / schema. */
+  execOutBranches: (string | undefined)[];
   isGate?: boolean;
 };
 
@@ -13,6 +15,7 @@ export type ContainerFlowData = {
   title: string;
   catalogType: string;
   ports: Port[];
+  execOutBranches: (string | undefined)[];
   iterablePortId: string;
   sourceKind: "snapshot" | "live";
 };

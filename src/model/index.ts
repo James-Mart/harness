@@ -23,7 +23,21 @@ export {
   schemasCompatible,
   type MockSchemaName,
 } from "@/model/schema";
-export { createBaseSeedHarness } from "@/model/seed";
+export {
+  EXEC_IN_HANDLE,
+  EXEC_OUT_HANDLE,
+  branchValuesFromNode,
+  branchValuesFromPorts,
+  execEdgeId,
+  execOutBranchesForNode,
+  execOutHandleId,
+  selectExecPath,
+  type ExecEdge,
+} from "@/model/exec";
+export {
+  createBaseSeedHarness,
+  createBranchingSeedHarness,
+} from "@/model/seed";
 export {
   CURRENT_ITEM_PORT_ID,
   EMPTY_RUN_CONFIG,

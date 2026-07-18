@@ -1,7 +1,9 @@
 import { type NodeProps } from "@xyflow/react";
 
+import { ExecHandles } from "@/components/canvas/ExecHandles";
 import type { LeafFlowNode } from "@/components/canvas/flowTypes";
 import {
+  FLOW_LAYOUT,
   flowLayoutCssVars,
   leafPortHandleTops,
 } from "@/components/canvas/layoutTokens";
@@ -13,6 +15,10 @@ export function LeafFlowNodeView({
   data,
   selected,
 }: NodeProps<LeafFlowNode>) {
+  const execOutCount = Math.max(1, data.execOutBranches.length);
+  const dataHandleTops = (count: number) =>
+    leafPortHandleTops(count, execOutCount);
+
   return (
     <div
       className={cn(
@@ -37,7 +43,11 @@ export function LeafFlowNodeView({
           {data.isGate ? " · gate" : ""}
         </p>
       </div>
-      <NodePortHandles ports={data.ports} handleTops={leafPortHandleTops} />
+      <ExecHandles
+        branches={data.execOutBranches}
+        bandTop={FLOW_LAYOUT.leafHeaderHeight}
+      />
+      <NodePortHandles ports={data.ports} handleTops={dataHandleTops} />
     </div>
   );
 }

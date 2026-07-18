@@ -14,10 +14,18 @@ import {
   canConnectDataWire,
   connectDataWire,
   createBaseSeedHarness,
+  type Harness,
 } from "@/model";
 
-export function EditorLayout() {
-  const [harness, setHarness] = useState(() => createBaseSeedHarness());
+type EditorLayoutProps = {
+  /** Override the default base seed (used by branching render tests). */
+  initialHarness?: Harness;
+};
+
+export function EditorLayout({ initialHarness }: EditorLayoutProps = {}) {
+  const [harness, setHarness] = useState(
+    () => initialHarness ?? createBaseSeedHarness(),
+  );
   const flowNodes = useMemo(() => harnessToFlowNodes(harness), [harness]);
   const flowEdges = useMemo(() => harnessToFlowEdges(harness), [harness]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);

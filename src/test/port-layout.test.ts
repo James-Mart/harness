@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   FLOW_LAYOUT,
+  containerExecOutHandleTops,
   containerHeaderPortHandleTops,
+  execBandHeight,
+  execOutHandleTops,
   leafHeightForPortCount,
   leafPortHandleTops,
   portHandleTopsInBand,
@@ -45,13 +48,16 @@ describe("port layout helpers", () => {
 
   it("keeps leaf handle tops coupled to measured leaf height", () => {
     for (const rows of [1, 2, 3]) {
-      const height = leafHeightForPortCount(rows);
-      const tops = leafPortHandleTops(rows);
+      const execOuts = 1;
+      const height = leafHeightForPortCount(rows, execOuts);
+      const tops = leafPortHandleTops(rows, execOuts);
+      const dataTop = FLOW_LAYOUT.leafHeaderHeight + execBandHeight(execOuts);
 
       expect(height).toBe(
         Math.max(
           FLOW_LAYOUT.leafMinHeight,
           FLOW_LAYOUT.leafHeaderHeight +
+            execBandHeight(execOuts) +
             rows * FLOW_LAYOUT.portRowHeight +
             FLOW_LAYOUT.leafPadY,
         ),
@@ -59,20 +65,42 @@ describe("port layout helpers", () => {
       expect(tops).toHaveLength(rows);
 
       for (const [index, top] of tops.entries()) {
-        expect(top).toBe(
-          FLOW_LAYOUT.leafHeaderHeight +
-            (index + 0.5) * FLOW_LAYOUT.portRowHeight,
-        );
-        expect(top).toBeGreaterThan(FLOW_LAYOUT.leafHeaderHeight);
+        expect(top).toBe(dataTop + (index + 0.5) * FLOW_LAYOUT.portRowHeight);
+        expect(top).toBeGreaterThan(dataTop);
         expect(top).toBeLessThan(height - FLOW_LAYOUT.leafPadY);
       }
     }
   });
 
-  it("keeps container handle tops inside the header band", () => {
+  it("places exec-out tops below the leaf title header and grows height", () => {
+    const execOuts = 2;
+    const tops = execOutHandleTops(execOuts);
+    expect(tops).toHaveLength(execOuts);
+    for (const top of tops) {
+      expect(top).toBeGreaterThan(FLOW_LAYOUT.leafHeaderHeight);
+      expect(top).toBeLessThan(
+        FLOW_LAYOUT.leafHeaderHeight + execBandHeight(execOuts),
+      );
+    }
+
+    const withBranches = leafHeightForPortCount(1, execOuts);
+    const sequential = leafHeightForPortCount(1, 1);
+    expect(withBranches).toBeGreaterThan(sequential);
+    expect(withBranches).toBe(
+      FLOW_LAYOUT.leafHeaderHeight +
+        execBandHeight(execOuts) +
+        FLOW_LAYOUT.portRowHeight +
+        FLOW_LAYOUT.leafPadY,
+    );
+  });
+
+  it("keeps container handle tops inside the header band below exec", () => {
     for (const count of [1, 2, 3]) {
-      const tops = containerHeaderPortHandleTops(count);
+      const execOuts = 1;
+      const execTops = containerExecOutHandleTops(execOuts);
+      const tops = containerHeaderPortHandleTops(count, execOuts);
       expect(tops).toHaveLength(count);
+      expect(execTops[0]).toBeLessThan(tops[0]!);
       for (const top of tops) {
         expect(top).toBeGreaterThan(0);
         expect(top).toBeLessThan(FLOW_LAYOUT.containerHeaderHeight);

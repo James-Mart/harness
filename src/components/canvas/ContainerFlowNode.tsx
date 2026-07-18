@@ -1,7 +1,9 @@
 import { type NodeProps } from "@xyflow/react";
 
+import { ExecHandles } from "@/components/canvas/ExecHandles";
 import type { ContainerFlowNode } from "@/components/canvas/flowTypes";
 import {
+  FLOW_LAYOUT,
   containerHeaderPortHandleTops,
   flowLayoutCssVars,
 } from "@/components/canvas/layoutTokens";
@@ -13,6 +15,10 @@ export function ContainerFlowNodeView({
   data,
   selected,
 }: NodeProps<ContainerFlowNode>) {
+  const execOutCount = Math.max(1, data.execOutBranches.length);
+  const dataHandleTops = (count: number) =>
+    containerHeaderPortHandleTops(count, execOutCount);
+
   return (
     <div
       className={cn(
@@ -42,11 +48,12 @@ export function ContainerFlowNodeView({
             </p>
           </div>
         </div>
-        {/* Header-local relative shell — tops stay in the header as body grows. */}
-        <NodePortHandles
-          ports={data.ports}
-          handleTops={containerHeaderPortHandleTops}
+        <ExecHandles
+          branches={data.execOutBranches}
+          bandTop={FLOW_LAYOUT.containerHeaderPortPadY}
         />
+        {/* Header-local relative shell — tops stay in the header as body grows. */}
+        <NodePortHandles ports={data.ports} handleTops={dataHandleTops} />
       </div>
       <div
         className="w-full"

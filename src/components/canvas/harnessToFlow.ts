@@ -1,4 +1,4 @@
-import type { Edge as FlowEdge } from "@xyflow/react";
+import { MarkerType, type Edge as FlowEdge } from "@xyflow/react";
 
 import type {
   ContainerFlowNode,
@@ -13,8 +13,14 @@ import {
   portsByDirection,
   schemaAccent,
 } from "@/components/canvas/portVisuals";
-import { dataEdgeId, findPort } from "@/model/wiring";
+import {
+  EXEC_IN_HANDLE,
+  execEdgeId,
+  execOutBranchesForNode,
+  execOutHandleId,
+} from "@/model/exec";
 import type { Harness, Node as HarnessNode, NodeId, Port } from "@/model/types";
+import { dataEdgeId, findPort } from "@/model/wiring";
 
 type Size = { width: number; height: number };
 
@@ -22,11 +28,14 @@ function childrenOf(nodes: HarnessNode[], parentId: string): HarnessNode[] {
   return nodes.filter((node) => node.parentId === parentId);
 }
 
-function leafSize(ports: readonly Port[]): Size {
+function leafSize(ports: readonly Port[], execOutCount: number): Size {
   const { inputs, outputs } = portsByDirection(ports);
   return {
     width: FLOW_LAYOUT.leafWidth,
-    height: leafHeightForPortCount(Math.max(inputs.length, outputs.length)),
+    height: leafHeightForPortCount(
+      Math.max(inputs.length, outputs.length),
+      execOutCount,
+    ),
   };
 }
 
@@ -37,14 +46,18 @@ function measureTree(
   sizes: Map<NodeId, Size>,
 ): Size {
   if (node.kind === "leaf") {
-    const size = leafSize(node.ports);
+    const execOutCount = Math.max(
+      1,
+      execOutBranchesForNode(harness, node).length,
+    );
+    const size = leafSize(node.ports, execOutCount);
     sizes.set(node.id, size);
     return size;
   }
 
   const kids = childrenOf(harness.nodes, node.id);
   if (kids.length === 0) {
-    const emptyLeaf = leafSize([]);
+    const emptyLeaf = leafSize([], 1);
     const size = {
       width: FLOW_LAYOUT.containerMinWidth,
       height:
@@ -77,6 +90,7 @@ function measureTree(
 }
 
 function toLeafFlowNode(
+  harness: Harness,
   node: Extract<HarnessNode, { kind: "leaf" }>,
   position: { x: number; y: number },
   size: Size,
@@ -91,6 +105,7 @@ function toLeafFlowNode(
       title: node.title,
       catalogType: node.type,
       ports: node.ports,
+      execOutBranches: execOutBranchesForNode(harness, node),
       ...(node.isGate ? { isGate: true } : {}),
     },
     style: {
@@ -101,6 +116,7 @@ function toLeafFlowNode(
 }
 
 function toContainerFlowNode(
+  harness: Harness,
   node: Extract<HarnessNode, { kind: "container" }>,
   position: { x: number; y: number },
   size: Size,
@@ -115,6 +131,7 @@ function toContainerFlowNode(
       title: node.title,
       catalogType: node.type,
       ports: node.ports,
+      execOutBranches: execOutBranchesForNode(harness, node),
       iterablePortId: node.iterablePortId,
       sourceKind: node.source.kind,
     },
@@ -136,18 +153,18 @@ function positionSubtree(
   }
 
   if (node.kind === "leaf") {
-    out.push(toLeafFlowNode(node, position, size, parentId));
+    out.push(toLeafFlowNode(harness, node, position, size, parentId));
     return;
   }
 
-  out.push(toContainerFlowNode(node, position, size, parentId));
+  out.push(toContainerFlowNode(harness, node, position, size, parentId));
 
   const kids = childrenOf(harness.nodes, node.id);
   let y = FLOW_LAYOUT.containerHeaderHeight + FLOW_LAYOUT.containerPadY;
   for (const child of kids) {
     const childSize = sizes.get(child.id);
     if (!childSize) {
-      throw new Error(`Missing measured size for node ${child.id}`);
+      throw new Error(`Missing measured size for child ${child.id}`);
     }
     positionSubtree(
       harness,
@@ -187,9 +204,9 @@ export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
   return out;
 }
 
-/** React Flow edges for harness data wires (bezier, coloured by source type). */
+/** React Flow edges for harness data wires and exec control edges. */
 export function harnessToFlowEdges(harness: Harness): FlowEdge[] {
-  return harness.edges
+  const dataEdges: FlowEdge[] = harness.edges
     .filter((edge) => edge.kind === "data")
     .map((edge) => {
       const fromPort = findPort(harness, edge.from);
@@ -207,4 +224,32 @@ export function harnessToFlowEdges(harness: Harness): FlowEdge[] {
         data: { kind: "data" as const },
       };
     });
+
+  const execEdges: FlowEdge[] = harness.edges
+    .filter((edge) => edge.kind === "exec")
+    .map((edge) => ({
+      id: execEdgeId(edge.from, edge.to, edge.branch),
+      source: edge.from,
+      sourceHandle: execOutHandleId(edge.branch),
+      target: edge.to,
+      targetHandle: EXEC_IN_HANDLE,
+      type: "smoothstep",
+      label: edge.branch,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 16,
+        height: 16,
+        color: "var(--foreground)",
+      },
+      style: {
+        stroke: "var(--foreground)",
+        strokeWidth: 1.75,
+      },
+      data: {
+        kind: "exec" as const,
+        ...(edge.branch !== undefined ? { branch: edge.branch } : {}),
+      },
+    }));
+
+  return [...dataEdges, ...execEdges];
 }

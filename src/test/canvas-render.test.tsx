@@ -1,10 +1,15 @@
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import App from "@/App";
-import { CURRENT_ITEM_PORT_ID } from "@/model";
+import { EditorLayout } from "@/components/layout/EditorLayout";
+import { CURRENT_ITEM_PORT_ID, createBranchingSeedHarness } from "@/model";
 
 describe("canvas render", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it("renders seeded leaf and container nodes with typed ports", () => {
     render(<App />);
 
@@ -49,11 +54,33 @@ describe("canvas render", () => {
       "data-port-direction",
       "out",
     );
+    expect(within(worker).getByTestId("port-exec-in")).toBeInTheDocument();
+    expect(within(worker).getByTestId("port-exec-out")).toBeInTheDocument();
+
     expect(
       canvas.querySelector('.react-flow__node[data-id="worker"]'),
     ).toBeTruthy();
     expect(
       canvas.querySelector('.react-flow__node[data-id="loop"]'),
     ).toBeTruthy();
+  });
+
+  it("renders a branching gate with ok/deny exec outs", () => {
+    render(<EditorLayout initialHarness={createBranchingSeedHarness()} />);
+
+    const canvas = screen.getByTestId("editor-canvas");
+    const gate = within(canvas).getByTestId("flow-node-gate");
+    expect(gate).toHaveAttribute("data-kind", "leaf");
+    expect(within(gate).getByText("Gate")).toBeInTheDocument();
+    expect(within(gate).getByTestId("port-exec-out-ok")).toHaveAttribute(
+      "data-exec-branch",
+      "ok",
+    );
+    expect(within(gate).getByTestId("port-exec-out-deny")).toHaveAttribute(
+      "data-exec-branch",
+      "deny",
+    );
+    expect(within(canvas).getByTestId("flow-node-onOk")).toBeInTheDocument();
+    expect(within(canvas).getByTestId("flow-node-onDeny")).toBeInTheDocument();
   });
 });
