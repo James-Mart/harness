@@ -2,11 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import { harnessToFlowNodes } from "@/components/canvas/harnessToFlow";
 import { FLOW_LAYOUT } from "@/components/canvas/layoutTokens";
-import { createBaseSeedHarness } from "@/model";
+import {
+  CURRENT_ITEM_PORT_ID,
+  createBaseSeedHarness,
+  mockSchema,
+} from "@/model";
 
 describe("harnessToFlowNodes", () => {
-  it("maps the base seed with containment and layout tokens", () => {
-    const nodes = harnessToFlowNodes(createBaseSeedHarness());
+  it("maps the base seed with containment, ports, and layout tokens", () => {
+    const harness = createBaseSeedHarness();
+    const nodes = harnessToFlowNodes(harness);
 
     expect(nodes.map((node) => node.id)).toEqual(["source", "loop", "worker"]);
 
@@ -16,32 +21,46 @@ describe("harnessToFlowNodes", () => {
 
     expect(source?.type).toBe("leaf");
     expect(source?.parentId).toBeUndefined();
-    expect(source?.data).toEqual({
-      title: "List source",
-      catalogType: "listSource",
-    });
+    expect(source?.data.title).toBe("List source");
+    expect(source?.data.catalogType).toBe("listSource");
+    expect(source?.data.ports).toEqual(
+      harness.nodes.find((node) => node.id === "source")!.ports,
+    );
+    expect(source?.data.ports.map((port) => port.id)).toEqual(["items"]);
 
     expect(loop?.type).toBe("container");
     expect(loop?.parentId).toBeUndefined();
-    expect(loop?.data).toEqual({
+    expect(loop?.data).toMatchObject({
       title: "For each",
       catalogType: "foreach",
       iterablePortId: "items",
       sourceKind: "snapshot",
     });
+    expect(loop?.data.ports.map((port) => port.id)).toEqual([
+      "items",
+      CURRENT_ITEM_PORT_ID,
+    ]);
+    expect(
+      loop?.data.ports.find((port) => port.id === CURRENT_ITEM_PORT_ID)?.schema,
+    ).toEqual(mockSchema("task"));
     expect(loop?.style?.width).toBeGreaterThan(0);
     expect(loop?.style?.height).toBeGreaterThan(0);
 
     expect(worker?.type).toBe("leaf");
     expect(worker?.parentId).toBe("loop");
     expect(worker?.extent).toBe("parent");
-    expect(worker?.data).toEqual({
-      title: "Implementor",
-      catalogType: "implementor",
-    });
+    expect(worker?.data.title).toBe("Implementor");
+    expect(worker?.data.catalogType).toBe("implementor");
+    expect(worker?.data.ports.map((port) => port.id)).toEqual([
+      "task",
+      "result",
+    ]);
     expect(worker?.position).toEqual({
       x: FLOW_LAYOUT.containerPadX,
       y: FLOW_LAYOUT.containerHeaderHeight + FLOW_LAYOUT.containerPadY,
     });
+    expect(worker?.style?.height).toBeGreaterThan(
+      FLOW_LAYOUT.leafMinHeight - 1,
+    );
   });
 });

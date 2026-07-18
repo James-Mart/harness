@@ -3,13 +3,25 @@ import type {
   HarnessFlowNode,
   LeafFlowNode,
 } from "@/components/canvas/flowTypes";
-import { FLOW_LAYOUT } from "@/components/canvas/layoutTokens";
-import type { Harness, Node as HarnessNode, NodeId } from "@/model/types";
+import {
+  FLOW_LAYOUT,
+  leafHeightForPortCount,
+} from "@/components/canvas/layoutTokens";
+import { portsByDirection } from "@/components/canvas/portVisuals";
+import type { Harness, Node as HarnessNode, NodeId, Port } from "@/model/types";
 
 type Size = { width: number; height: number };
 
 function childrenOf(nodes: HarnessNode[], parentId: string): HarnessNode[] {
   return nodes.filter((node) => node.parentId === parentId);
+}
+
+function leafSize(ports: readonly Port[]): Size {
+  const { inputs, outputs } = portsByDirection(ports);
+  return {
+    width: FLOW_LAYOUT.leafWidth,
+    height: leafHeightForPortCount(Math.max(inputs.length, outputs.length)),
+  };
 }
 
 /** Bottom-up size cache — one walk, reused by the position pass. */
@@ -19,22 +31,20 @@ function measureTree(
   sizes: Map<NodeId, Size>,
 ): Size {
   if (node.kind === "leaf") {
-    const size = {
-      width: FLOW_LAYOUT.leafWidth,
-      height: FLOW_LAYOUT.leafHeight,
-    };
+    const size = leafSize(node.ports);
     sizes.set(node.id, size);
     return size;
   }
 
   const kids = childrenOf(harness.nodes, node.id);
   if (kids.length === 0) {
+    const emptyLeaf = leafSize([]);
     const size = {
       width: FLOW_LAYOUT.containerMinWidth,
       height:
         FLOW_LAYOUT.containerHeaderHeight +
         FLOW_LAYOUT.containerPadY * 2 +
-        FLOW_LAYOUT.leafHeight,
+        emptyLeaf.height,
     };
     sizes.set(node.id, size);
     return size;
@@ -63,6 +73,7 @@ function measureTree(
 function toLeafFlowNode(
   node: Extract<HarnessNode, { kind: "leaf" }>,
   position: { x: number; y: number },
+  size: Size,
   parentId?: string,
 ): LeafFlowNode {
   return {
@@ -73,11 +84,12 @@ function toLeafFlowNode(
     data: {
       title: node.title,
       catalogType: node.type,
+      ports: node.ports,
       ...(node.isGate ? { isGate: true } : {}),
     },
     style: {
-      width: FLOW_LAYOUT.leafWidth,
-      height: FLOW_LAYOUT.leafHeight,
+      width: size.width,
+      height: size.height,
     },
   };
 }
@@ -96,6 +108,7 @@ function toContainerFlowNode(
     data: {
       title: node.title,
       catalogType: node.type,
+      ports: node.ports,
       iterablePortId: node.iterablePortId,
       sourceKind: node.source.kind,
     },
@@ -117,7 +130,7 @@ function positionSubtree(
   }
 
   if (node.kind === "leaf") {
-    out.push(toLeafFlowNode(node, position, parentId));
+    out.push(toLeafFlowNode(node, position, size, parentId));
     return;
   }
 

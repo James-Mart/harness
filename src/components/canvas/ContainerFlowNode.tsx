@@ -1,9 +1,12 @@
 import { type NodeProps } from "@xyflow/react";
 
 import type { ContainerFlowNode } from "@/components/canvas/flowTypes";
-import { flowLayoutCssVars } from "@/components/canvas/layoutTokens";
+import {
+  containerHeaderPortHandleTops,
+  flowLayoutCssVars,
+} from "@/components/canvas/layoutTokens";
+import { NodePortHandles } from "@/components/canvas/NodePortHandles";
 import { cn } from "@/lib/utils";
-import { CURRENT_ITEM_PORT_ID } from "@/model/types";
 
 export function ContainerFlowNodeView({
   id,
@@ -21,22 +24,29 @@ export function ContainerFlowNodeView({
       data-kind="container"
     >
       <div
-        className="border-border/70 flex items-start justify-between gap-2 border-b border-dashed px-3 py-2"
+        className="border-border/70 relative border-b border-dashed"
         style={{ height: "var(--flow-container-header-height)" }}
       >
-        <div className="min-w-0">
-          <p className="text-sm font-medium leading-tight">{data.title}</p>
-          <p className="text-muted-foreground mt-0.5 text-[0.65rem] tracking-wide uppercase">
-            {data.catalogType} · {data.sourceKind}
-          </p>
-        </div>
-        <span
-          className="bg-background text-foreground shrink-0 rounded-md border px-1.5 py-0.5 font-mono text-[0.65rem]"
-          data-testid="current-item-port"
-          title="Built-in container output for the current iteration element"
+        <div
+          className="flex h-full min-w-0 items-start"
+          style={{
+            paddingLeft: "var(--flow-port-label-inset)",
+            paddingRight: "var(--flow-port-label-inset)",
+            paddingTop: "0.5rem",
+          }}
         >
-          {CURRENT_ITEM_PORT_ID}
-        </span>
+          <div className="min-w-0">
+            <p className="text-sm font-medium leading-tight">{data.title}</p>
+            <p className="text-muted-foreground mt-0.5 text-[0.65rem] tracking-wide uppercase">
+              {data.catalogType} · {data.sourceKind}
+            </p>
+          </div>
+        </div>
+        {/* Header-local relative shell — tops stay in the header as body grows. */}
+        <NodePortHandles
+          ports={data.ports}
+          handleTops={containerHeaderPortHandleTops}
+        />
       </div>
       <div
         className="w-full"
