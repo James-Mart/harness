@@ -4,7 +4,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import App from "@/App";
 import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import { EditorLayout } from "@/components/layout/EditorLayout";
-import { CURRENT_ITEM_PORT_ID, createBranchingSeedHarness } from "@/model";
+import {
+  CURRENT_ITEM_PORT_ID,
+  createBranchingSeedHarness,
+  createWorkPoolSeedHarness,
+} from "@/model";
 
 describe("canvas render", () => {
   afterEach(() => {
@@ -103,5 +107,48 @@ describe("canvas render", () => {
     );
     expect(within(canvas).getByTestId("flow-node-onOk")).toBeInTheDocument();
     expect(within(canvas).getByTestId("flow-node-onDeny")).toBeInTheDocument();
+  });
+
+  it("renders work-pool policy, live source, fan-out, and fixpoint markers", () => {
+    render(<EditorLayout initialHarness={createWorkPoolSeedHarness()} />);
+
+    const canvas = screen.getByTestId("editor-canvas");
+    const pool = within(canvas).getByTestId("flow-node-pool");
+    const fanOut = within(canvas).getByTestId("flow-node-fanOut");
+
+    expect(within(pool).getByTestId("source-marker")).toHaveAttribute(
+      "data-source-kind",
+      "live",
+    );
+    expect(within(pool).getByTestId("source-marker")).toHaveTextContent("live");
+    expect(within(pool).getByTestId("concurrency-badge")).toHaveTextContent(
+      "∥ ≤4",
+    );
+    expect(within(pool).getByTestId("fixpoint-marker")).toHaveTextContent(
+      "fixpoint",
+    );
+    expect(within(pool).getByTestId("fan-out-target-marker")).toHaveTextContent(
+      "fan-out",
+    );
+
+    const fanOutMarker = within(fanOut).getByTestId("fan-out-marker");
+    expect(fanOutMarker).toHaveAttribute("data-appends-to", "pool");
+    expect(fanOutMarker).toHaveTextContent("append → Work pool");
+  });
+
+  it("renders snapshot foreach with sequential badge and no fixpoint", () => {
+    render(<App />);
+
+    const canvas = screen.getByTestId("editor-canvas");
+    const loop = within(canvas).getByTestId("flow-node-loop");
+    expect(within(loop).getByTestId("source-marker")).toHaveAttribute(
+      "data-source-kind",
+      "snapshot",
+    );
+    expect(within(loop).getByTestId("concurrency-badge")).toHaveTextContent(
+      "seq",
+    );
+    expect(within(loop).queryByTestId("fixpoint-marker")).toBeNull();
+    expect(within(loop).queryByTestId("fan-out-target-marker")).toBeNull();
   });
 });

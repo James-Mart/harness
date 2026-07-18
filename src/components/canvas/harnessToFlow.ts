@@ -15,28 +15,62 @@ import {
   portsByDirection,
   schemaAccent,
 } from "@/components/canvas/portVisuals";
+import { toAppendFlowEdge } from "@/components/canvas/workpoolVisuals";
 import {
   EXEC_IN_HANDLE,
   execEdgeId,
   execOutBranchesForNode,
   execOutHandleId,
 } from "@/model/exec";
-import type { Harness, Node as HarnessNode, NodeId, Port } from "@/model/types";
+import { effectiveConcurrency } from "@/model/readySet";
+import type {
+  Harness,
+  LeafNode,
+  Node as HarnessNode,
+  NodeId,
+  Port,
+} from "@/model/types";
 import { dataEdgeId, findPort } from "@/model/wiring";
 
 type Size = { width: number; height: number };
+
+type WorkPoolIndex = {
+  byId: Map<NodeId, HarnessNode>;
+  fanOutTargets: Set<NodeId>;
+  appenders: Array<LeafNode & { appendsTo: NodeId }>;
+};
+
+function buildWorkPoolIndex(harness: Harness): WorkPoolIndex {
+  const byId = new Map(harness.nodes.map((node) => [node.id, node]));
+  const appenders: WorkPoolIndex["appenders"] = [];
+  for (const node of harness.nodes) {
+    if (node.kind === "leaf" && node.appendsTo !== undefined) {
+      appenders.push(node as LeafNode & { appendsTo: NodeId });
+    }
+  }
+  return {
+    byId,
+    fanOutTargets: new Set(appenders.map((leaf) => leaf.appendsTo)),
+    appenders,
+  };
+}
 
 function childrenOf(nodes: HarnessNode[], parentId: string): HarnessNode[] {
   return nodes.filter((node) => node.parentId === parentId);
 }
 
-function leafSize(ports: readonly Port[], execOutCount: number): Size {
+function leafSize(
+  ports: readonly Port[],
+  execOutCount: number,
+  hasFanOutMarker = false,
+): Size {
   const { inputs, outputs } = portsByDirection(ports);
   return {
     width: FLOW_LAYOUT.leafWidth,
     height: leafHeightForPortCount(
       Math.max(inputs.length, outputs.length),
       execOutCount,
+      { hasFanOutMarker },
     ),
   };
 }
@@ -65,17 +99,14 @@ function aggregateChildContent(
   };
 }
 
-/** Wrap body content with container/harness header + padding chrome. */
-function wrapWithContainerChrome(content: Size): Size {
+/** Wrap body content with header + padding chrome. */
+function wrapWithHeaderChrome(content: Size, headerHeight: number): Size {
   return {
     width: Math.max(
       FLOW_LAYOUT.containerMinWidth,
       content.width + FLOW_LAYOUT.containerPadX * 2,
     ),
-    height:
-      FLOW_LAYOUT.containerHeaderHeight +
-      FLOW_LAYOUT.containerPadY * 2 +
-      content.height,
+    height: headerHeight + FLOW_LAYOUT.containerPadY * 2 + content.height,
   };
 }
 
@@ -90,15 +121,20 @@ function measureTree(
       1,
       execOutBranchesForNode(harness, node).length,
     );
-    const size = leafSize(node.ports, execOutCount);
+    const size = leafSize(
+      node.ports,
+      execOutCount,
+      node.appendsTo !== undefined,
+    );
     sizes.set(node.id, size);
     return size;
   }
 
   const kids = childrenOf(harness.nodes, node.id);
   const childSizes = kids.map((child) => measureTree(harness, child, sizes));
-  const size = wrapWithContainerChrome(
+  const size = wrapWithHeaderChrome(
     aggregateChildContent(childSizes, "vertical"),
+    FLOW_LAYOUT.containerHeaderHeight,
   );
   sizes.set(node.id, size);
   return size;
@@ -106,8 +142,9 @@ function measureTree(
 
 /** Size of the harness shell wrapping top-level nodes left-to-right. */
 function measureHarnessShell(rootSizes: Size[]): Size {
-  return wrapWithContainerChrome(
+  return wrapWithHeaderChrome(
     aggregateChildContent(rootSizes, "horizontal"),
+    FLOW_LAYOUT.harnessHeaderHeight,
   );
 }
 
@@ -116,8 +153,12 @@ function toLeafFlowNode(
   node: Extract<HarnessNode, { kind: "leaf" }>,
   position: { x: number; y: number },
   size: Size,
+  index: WorkPoolIndex,
   parentId?: string,
 ): LeafFlowNode {
+  const appendTarget =
+    node.appendsTo === undefined ? undefined : index.byId.get(node.appendsTo);
+
   return {
     id: node.id,
     type: "leaf",
@@ -129,6 +170,12 @@ function toLeafFlowNode(
       ports: node.ports,
       execOutBranches: execOutBranchesForNode(harness, node),
       ...(node.isGate ? { isGate: true } : {}),
+      ...(node.appendsTo !== undefined
+        ? {
+            appendsTo: node.appendsTo,
+            appendsToTitle: appendTarget?.title ?? node.appendsTo,
+          }
+        : {}),
     },
     style: {
       width: size.width,
@@ -142,6 +189,7 @@ function toContainerFlowNode(
   node: Extract<HarnessNode, { kind: "container" }>,
   position: { x: number; y: number },
   size: Size,
+  index: WorkPoolIndex,
   parentId?: string,
 ): ContainerFlowNode {
   return {
@@ -156,6 +204,9 @@ function toContainerFlowNode(
       execOutBranches: execOutBranchesForNode(harness, node),
       iterablePortId: node.iterablePortId,
       sourceKind: node.source.kind,
+      concurrency: effectiveConcurrency(harness, node),
+      ...(node.end !== undefined ? { end: node.end } : {}),
+      hasFanOut: index.fanOutTargets.has(node.id),
     },
     style: { width: size.width, height: size.height },
   };
@@ -183,6 +234,7 @@ function positionSubtree(
   position: { x: number; y: number },
   parentId: string | undefined,
   sizes: Map<NodeId, Size>,
+  index: WorkPoolIndex,
   out: HarnessFlowNode[],
 ): void {
   const size = sizes.get(node.id);
@@ -191,11 +243,11 @@ function positionSubtree(
   }
 
   if (node.kind === "leaf") {
-    out.push(toLeafFlowNode(harness, node, position, size, parentId));
+    out.push(toLeafFlowNode(harness, node, position, size, index, parentId));
     return;
   }
 
-  out.push(toContainerFlowNode(harness, node, position, size, parentId));
+  out.push(toContainerFlowNode(harness, node, position, size, index, parentId));
 
   const kids = childrenOf(harness.nodes, node.id);
   let y = FLOW_LAYOUT.containerHeaderHeight + FLOW_LAYOUT.containerPadY;
@@ -210,6 +262,7 @@ function positionSubtree(
       { x: FLOW_LAYOUT.containerPadX, y },
       node.id,
       sizes,
+      index,
       out,
     );
     y += childSize.height + FLOW_LAYOUT.childGap;
@@ -222,6 +275,7 @@ function positionSubtree(
  * graph nodes sit in its body left-to-right.
  */
 export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
+  const index = buildWorkPoolIndex(harness);
   const roots = harness.nodes.filter((node) => node.parentId === undefined);
   const sizes = new Map<NodeId, Size>();
   const rootSizes = roots.map((root) => measureTree(harness, root, sizes));
@@ -231,21 +285,31 @@ export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
     toHarnessBoundaryFlowNode(harness, shellSize),
   ];
   let x = FLOW_LAYOUT.containerPadX;
-  const y = FLOW_LAYOUT.containerHeaderHeight + FLOW_LAYOUT.containerPadY;
+  const y = FLOW_LAYOUT.harnessHeaderHeight + FLOW_LAYOUT.containerPadY;
   for (const root of roots) {
     const size = sizes.get(root.id);
     if (!size) {
-      throw new Error(`Missing measured size for node ${root.id}`);
+      throw new Error(`Missing measured size for root ${root.id}`);
     }
-    positionSubtree(harness, root, { x, y }, HARNESS_FLOW_NODE_ID, sizes, out);
+    positionSubtree(
+      harness,
+      root,
+      { x, y },
+      HARNESS_FLOW_NODE_ID,
+      sizes,
+      index,
+      out,
+    );
     x += size.width + FLOW_LAYOUT.topLevelGap;
   }
 
   return out;
 }
 
-/** React Flow edges for harness data wires and exec control edges. */
+/** React Flow edges for harness data wires, exec control, and fan-out append. */
 export function harnessToFlowEdges(harness: Harness): FlowEdge[] {
+  const index = buildWorkPoolIndex(harness);
+
   const dataEdges: FlowEdge[] = harness.edges
     .filter((edge) => edge.kind === "data")
     .map((edge) => {
@@ -291,5 +355,7 @@ export function harnessToFlowEdges(harness: Harness): FlowEdge[] {
       },
     }));
 
-  return [...dataEdges, ...execEdges];
+  const appendEdges = index.appenders.map(toAppendFlowEdge);
+
+  return [...dataEdges, ...execEdges, ...appendEdges];
 }

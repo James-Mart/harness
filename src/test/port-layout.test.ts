@@ -8,6 +8,7 @@ import {
   execOutHandleTops,
   leafHeightForPortCount,
   leafPortHandleTops,
+  leafTitleHeaderHeight,
   portHandleTopsInBand,
 } from "@/components/canvas/layoutTokens";
 import {
@@ -48,26 +49,31 @@ describe("port layout helpers", () => {
 
   it("keeps leaf handle tops coupled to measured leaf height", () => {
     for (const rows of [1, 2, 3]) {
-      const execOuts = 1;
-      const height = leafHeightForPortCount(rows, execOuts);
-      const tops = leafPortHandleTops(rows, execOuts);
-      const dataTop = FLOW_LAYOUT.leafHeaderHeight + execBandHeight(execOuts);
+      for (const hasFanOutMarker of [false, true]) {
+        const execOuts = 1;
+        const options = { hasFanOutMarker };
+        const height = leafHeightForPortCount(rows, execOuts, options);
+        const tops = leafPortHandleTops(rows, execOuts, options);
+        const header = leafTitleHeaderHeight(options);
+        const dataTop = header + execBandHeight(execOuts);
 
-      expect(height).toBe(
-        Math.max(
-          FLOW_LAYOUT.leafMinHeight,
-          FLOW_LAYOUT.leafHeaderHeight +
-            execBandHeight(execOuts) +
-            rows * FLOW_LAYOUT.portRowHeight +
-            FLOW_LAYOUT.leafPadY,
-        ),
-      );
-      expect(tops).toHaveLength(rows);
+        expect(height).toBe(
+          Math.max(
+            FLOW_LAYOUT.leafMinHeight +
+              (hasFanOutMarker ? FLOW_LAYOUT.leafFanOutMarkerHeight : 0),
+            header +
+              execBandHeight(execOuts) +
+              rows * FLOW_LAYOUT.portRowHeight +
+              FLOW_LAYOUT.leafPadY,
+          ),
+        );
+        expect(tops).toHaveLength(rows);
 
-      for (const [index, top] of tops.entries()) {
-        expect(top).toBe(dataTop + (index + 0.5) * FLOW_LAYOUT.portRowHeight);
-        expect(top).toBeGreaterThan(dataTop);
-        expect(top).toBeLessThan(height - FLOW_LAYOUT.leafPadY);
+        for (const [index, top] of tops.entries()) {
+          expect(top).toBe(dataTop + (index + 0.5) * FLOW_LAYOUT.portRowHeight);
+          expect(top).toBeGreaterThan(dataTop);
+          expect(top).toBeLessThan(height - FLOW_LAYOUT.leafPadY);
+        }
       }
     }
   });
@@ -111,6 +117,22 @@ describe("port layout helpers", () => {
         );
       }
     }
+  });
+
+  it("uses harness header height for boundary port band", () => {
+    const tops = containerHeaderPortHandleTops(
+      2,
+      0,
+      FLOW_LAYOUT.harnessHeaderHeight,
+    );
+    expect(tops).toHaveLength(2);
+    for (const top of tops) {
+      expect(top).toBeGreaterThan(0);
+      expect(top).toBeLessThan(FLOW_LAYOUT.harnessHeaderHeight);
+    }
+    expect(FLOW_LAYOUT.harnessHeaderHeight).toBeLessThan(
+      FLOW_LAYOUT.containerHeaderHeight,
+    );
   });
 
   it("uses the full header band when execOutCount is 0", () => {

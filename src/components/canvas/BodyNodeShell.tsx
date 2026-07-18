@@ -22,6 +22,8 @@ type BodyNodeShellProps = {
   className?: string;
   headerClassName?: string;
   bodyTestId: string;
+  /** Optional badge row under the subtitle (work-pool affordances). */
+  badges?: ReactNode;
 };
 
 /**
@@ -39,11 +41,16 @@ export function BodyNodeShell({
   className,
   headerClassName,
   bodyTestId,
+  badges,
 }: BodyNodeShellProps): ReactNode {
   const execOutCount =
     execOutBranches === undefined ? 0 : Math.max(1, execOutBranches.length);
+  const headerHeight =
+    kind === "harness"
+      ? FLOW_LAYOUT.harnessHeaderHeight
+      : FLOW_LAYOUT.containerHeaderHeight;
   const dataHandleTops = (count: number) =>
-    containerHeaderPortHandleTops(count, execOutCount);
+    containerHeaderPortHandleTops(count, execOutCount, headerHeight);
 
   return (
     <div
@@ -58,7 +65,7 @@ export function BodyNodeShell({
     >
       <div
         className={cn("border-border relative border-b", headerClassName)}
-        style={{ height: "var(--flow-container-header-height)" }}
+        style={{ height: headerHeight }}
       >
         <div
           className="flex h-full min-w-0 items-start"
@@ -68,11 +75,16 @@ export function BodyNodeShell({
             paddingTop: "0.5rem",
           }}
         >
-          <div className="min-w-0">
+          <div className="min-w-0 overflow-hidden">
             <p className="text-sm font-medium leading-tight">{title}</p>
             <p className="text-muted-foreground mt-0.5 text-[0.65rem] tracking-wide uppercase">
               {subtitle}
             </p>
+            {badges ? (
+              <div className="mt-1 flex flex-nowrap gap-1 overflow-hidden">
+                {badges}
+              </div>
+            ) : null}
           </div>
         </div>
         {execOutBranches !== undefined ? (
@@ -85,9 +97,7 @@ export function BodyNodeShell({
       </div>
       <div
         className="w-full"
-        style={{
-          height: "calc(100% - var(--flow-container-header-height))",
-        }}
+        style={{ height: `calc(100% - ${headerHeight}px)` }}
         data-testid={bodyTestId}
         aria-label={`${title} body`}
       />

@@ -5,6 +5,8 @@ export const FLOW_LAYOUT = {
   leafWidth: 196,
   leafMinHeight: 64,
   leafHeaderHeight: 36,
+  /** Extra header room for the fan-out append marker line. */
+  leafFanOutMarkerHeight: 14,
   portRowHeight: 18,
   leafPadY: 10,
   /** Horizontal inset for port labels / title clearance. */
@@ -14,12 +16,25 @@ export const FLOW_LAYOUT = {
   containerMinWidth: 260,
   containerPadX: 20,
   containerPadY: 16,
-  containerHeaderHeight: 52,
+  /** Title + subtitle only (harness boundary has no badge row). */
+  harnessHeaderHeight: 52,
+  /** Title + subtitle + single-line work-pool badge row. */
+  containerHeaderHeight: 72,
   /** Vertical pad inside the container header port band. */
   containerHeaderPortPadY: 8,
   childGap: 12,
   topLevelGap: 48,
 } as const;
+
+export type LeafLayoutOptions = { hasFanOutMarker?: boolean };
+
+/** Leaf title-band height, including optional fan-out marker line. */
+export function leafTitleHeaderHeight(options: LeafLayoutOptions = {}): number {
+  return (
+    FLOW_LAYOUT.leafHeaderHeight +
+    (options.hasFanOutMarker ? FLOW_LAYOUT.leafFanOutMarkerHeight : 0)
+  );
+}
 
 /** CSS variables mirroring `FLOW_LAYOUT` for leaf + container node views. */
 export const flowLayoutCssVars = {
@@ -27,6 +42,7 @@ export const flowLayoutCssVars = {
   "--flow-leaf-pad-y": `${FLOW_LAYOUT.leafPadY}px`,
   "--flow-port-label-inset": `${FLOW_LAYOUT.portLabelInsetX}px`,
   "--flow-container-header-height": `${FLOW_LAYOUT.containerHeaderHeight}px`,
+  "--flow-harness-header-height": `${FLOW_LAYOUT.harnessHeaderHeight}px`,
   "--flow-container-pad-x": `${FLOW_LAYOUT.containerPadX}px`,
   "--flow-container-pad-y": `${FLOW_LAYOUT.containerPadY}px`,
 } as CSSProperties;
@@ -82,9 +98,10 @@ export function execInHandleTop(
 export function leafPortHandleTops(
   count: number,
   execOutCount: number = 1,
+  options: LeafLayoutOptions = {},
 ): number[] {
   if (count <= 0) return [];
-  const dataTop = FLOW_LAYOUT.leafHeaderHeight + execBandHeight(execOutCount);
+  const dataTop = leafTitleHeaderHeight(options) + execBandHeight(execOutCount);
   return Array.from(
     { length: count },
     (_, index) => dataTop + (index + 0.5) * FLOW_LAYOUT.portRowHeight,
@@ -99,13 +116,14 @@ export function leafPortHandleTops(
 export function containerHeaderPortHandleTops(
   count: number,
   execOutCount: number = 1,
+  headerHeight: number = FLOW_LAYOUT.containerHeaderHeight,
 ): number[] {
   const pad = FLOW_LAYOUT.containerHeaderPortPadY;
   const execH = execOutCount > 0 ? execBandHeight(execOutCount) : 0;
   const bandTop = pad + execH;
   const bandHeight = Math.max(
     FLOW_LAYOUT.portRowHeight,
-    FLOW_LAYOUT.containerHeaderHeight - pad * 2 - execH,
+    headerHeight - pad * 2 - execH,
   );
   return portHandleTopsInBand(count, bandTop, bandHeight);
 }
@@ -127,11 +145,16 @@ export function containerExecInHandleTop(outCount: number = 1): number {
 export function leafHeightForPortCount(
   portRows: number,
   execOutCount: number = 1,
+  options: LeafLayoutOptions = {},
 ): number {
   const rows = Math.max(1, portRows);
+  const header = leafTitleHeaderHeight(options);
+  const headerExtra = options.hasFanOutMarker
+    ? FLOW_LAYOUT.leafFanOutMarkerHeight
+    : 0;
   return Math.max(
-    FLOW_LAYOUT.leafMinHeight,
-    FLOW_LAYOUT.leafHeaderHeight +
+    FLOW_LAYOUT.leafMinHeight + headerExtra,
+    header +
       execBandHeight(execOutCount) +
       rows * FLOW_LAYOUT.portRowHeight +
       FLOW_LAYOUT.leafPadY,
