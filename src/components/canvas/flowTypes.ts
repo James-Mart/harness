@@ -1,6 +1,9 @@
 import type { Node } from "@xyflow/react";
 
-import type { Port } from "@/model/types";
+import type { WorkPoolAdvisoryCue } from "@/model/workpoolGraph";
+import type { Concurrency, EndCondition, Port } from "@/model/types";
+
+export type { WorkPoolAdvisoryCue };
 
 export type LeafFlowData = {
   title: string;
@@ -9,6 +12,10 @@ export type LeafFlowData = {
   /** Exec-out slots derived from harness edges / schema. */
   execOutBranches: (string | undefined)[];
   isGate?: boolean;
+  /** Live container this leaf appends into (fan-out). */
+  appendsTo?: string;
+  /** Display title of the append target (for the fan-out marker). */
+  appendsToTitle?: string;
 };
 
 export type ContainerFlowData = {
@@ -18,6 +25,13 @@ export type ContainerFlowData = {
   execOutBranches: (string | undefined)[];
   iterablePortId: string;
   sourceKind: "snapshot" | "live";
+  /** Effective concurrency (node policy + run-config override). */
+  concurrency: Concurrency;
+  end?: EndCondition;
+  /** True when a body leaf declares `appendsTo` this container. */
+  hasFanOut: boolean;
+  /** Advisory (non-blocking) work-pool cues for this container. */
+  advisoryCues: WorkPoolAdvisoryCue[];
 };
 
 /** Outer harness shell — boundary signature ports only. */

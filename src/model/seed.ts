@@ -6,6 +6,7 @@ import {
   type Harness,
   type Port,
 } from "@/model/types";
+import { assertWorkPoolInvariants } from "@/model/workpoolGraph";
 
 /** Typed outer signature for the base seed (harness-as-node). */
 function baseSeedBoundary(): Port[] {
@@ -56,6 +57,94 @@ export function createBaseSeedHarness(): Harness {
       },
       { kind: "exec", from: source.id, to: loop.id },
       { kind: "exec", from: loop.id, to: worker.id },
+    ],
+    runConfig: structuredClone(EMPTY_RUN_CONFIG),
+  };
+}
+
+/**
+ * Live work-pool seed: list source → parallel live pool → fan-out body
+ * that appends back into the pool (recursive fan-out + fixpoint end).
+ */
+export function createWorkPoolSeedHarness(): Harness {
+  const source = instantiateFromCatalog("listSource", { id: "source" });
+  const pool = instantiateFromCatalog("workPool", { id: "pool" });
+  const fanOut = instantiateFromCatalog("fanOut", {
+    id: "fanOut",
+    parentId: pool.id,
+    appendsTo: pool.id,
+  });
+
+  const harness: Harness = {
+    id: "workpool-seed",
+    title: "Work-pool seed harness",
+    boundary: baseSeedBoundary(),
+    nodes: [source, pool, fanOut],
+    edges: [
+      {
+        kind: "data",
+        from: { node: source.id, port: "items" },
+        to: { node: pool.id, port: pool.iterablePortId },
+      },
+      {
+        kind: "data",
+        from: { node: pool.id, port: CURRENT_ITEM_PORT_ID },
+        to: { node: fanOut.id, port: "task" },
+      },
+      { kind: "exec", from: source.id, to: pool.id },
+      { kind: "exec", from: pool.id, to: fanOut.id },
+    ],
+    runConfig: structuredClone(EMPTY_RUN_CONFIG),
+  };
+  assertWorkPoolInvariants(harness);
+  return harness;
+}
+
+/**
+ * Live work-pools that intentionally trip advisory cues: one with no
+ * appender, one missing a fixpoint end. Used by cue detection/render tests.
+ */
+export function createWorkPoolCueDemoHarness(): Harness {
+  const source = instantiateFromCatalog("listSource", { id: "source" });
+  const noAppender = instantiateFromCatalog("workPool", {
+    id: "noAppender",
+    title: "No appender pool",
+  });
+  const noFixpoint = instantiateFromCatalog("workPool", {
+    id: "noFixpoint",
+    title: "No fixpoint pool",
+  });
+  delete noFixpoint.end;
+  const fanOut = instantiateFromCatalog("fanOut", {
+    id: "fanOut",
+    parentId: noFixpoint.id,
+    appendsTo: noFixpoint.id,
+  });
+
+  return {
+    id: "workpool-cue-demo",
+    title: "Work-pool cue demo",
+    boundary: baseSeedBoundary(),
+    nodes: [source, noAppender, noFixpoint, fanOut],
+    edges: [
+      {
+        kind: "data",
+        from: { node: source.id, port: "items" },
+        to: { node: noAppender.id, port: noAppender.iterablePortId },
+      },
+      {
+        kind: "data",
+        from: { node: source.id, port: "items" },
+        to: { node: noFixpoint.id, port: noFixpoint.iterablePortId },
+      },
+      {
+        kind: "data",
+        from: { node: noFixpoint.id, port: CURRENT_ITEM_PORT_ID },
+        to: { node: fanOut.id, port: "task" },
+      },
+      { kind: "exec", from: source.id, to: noAppender.id },
+      { kind: "exec", from: source.id, to: noFixpoint.id },
+      { kind: "exec", from: noFixpoint.id, to: fanOut.id },
     ],
     runConfig: structuredClone(EMPTY_RUN_CONFIG),
   };

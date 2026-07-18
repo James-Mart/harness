@@ -37,6 +37,8 @@ export {
 export {
   createBaseSeedHarness,
   createBranchingSeedHarness,
+  createWorkPoolCueDemoHarness,
+  createWorkPoolSeedHarness,
 } from "@/model/seed";
 export {
   CURRENT_ITEM_PORT_ID,
@@ -44,6 +46,7 @@ export {
   type Concurrency,
   type ContainerNode,
   type Edge,
+  type EndCondition,
   type Harness,
   type JSONSchema,
   type LeafNode,
@@ -55,6 +58,25 @@ export {
   type RunConfig,
   type Source,
 } from "@/model/types";
+export {
+  appendToReadySet,
+  availableSlots,
+  availableSlotsFor,
+  createReadySet,
+  effectiveConcurrency,
+  isFixpoint,
+  maxConcurrencyOf,
+  type ReadySet,
+} from "@/model/readySet";
+export {
+  advisoryCuesForContainer,
+  assertWorkPoolInvariants,
+  liveContainersWithoutAppender,
+  nodesAppendingTo,
+  workPoolAdvisoryCues,
+  workPoolsMissingFixpoint,
+  type WorkPoolAdvisoryCue,
+} from "@/model/workpoolGraph";
 export {
   canConnectDataWire,
   connectDataWire,

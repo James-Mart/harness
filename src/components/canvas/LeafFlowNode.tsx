@@ -3,9 +3,9 @@ import { type NodeProps } from "@xyflow/react";
 import { ExecHandles } from "@/components/canvas/ExecHandles";
 import type { LeafFlowNode } from "@/components/canvas/flowTypes";
 import {
-  FLOW_LAYOUT,
   flowLayoutCssVars,
   leafPortHandleTops,
+  leafTitleHeaderHeight,
 } from "@/components/canvas/layoutTokens";
 import { NodePortHandles } from "@/components/canvas/NodePortHandles";
 import { cn } from "@/lib/utils";
@@ -16,8 +16,11 @@ export function LeafFlowNodeView({
   selected,
 }: NodeProps<LeafFlowNode>) {
   const execOutCount = Math.max(1, data.execOutBranches.length);
+  const hasFanOut = data.appendsTo !== undefined;
+  const layoutOptions = { hasFanOutMarker: hasFanOut };
+  const headerHeight = leafTitleHeaderHeight(layoutOptions);
   const dataHandleTops = (count: number) =>
-    leafPortHandleTops(count, execOutCount);
+    leafPortHandleTops(count, execOutCount, layoutOptions);
 
   return (
     <div
@@ -25,6 +28,7 @@ export function LeafFlowNodeView({
         "bg-card text-card-foreground relative h-full w-full rounded-lg border shadow-sm",
         selected && "border-ring ring-ring/40 ring-2",
         data.isGate && "border-dashed",
+        hasFanOut && "border-foreground/40",
       )}
       style={flowLayoutCssVars}
       data-testid={`flow-node-${id}`}
@@ -32,7 +36,7 @@ export function LeafFlowNodeView({
     >
       <div
         style={{
-          height: "var(--flow-leaf-header-height)",
+          height: `${headerHeight}px`,
           paddingLeft: "var(--flow-port-label-inset)",
           paddingRight: "var(--flow-port-label-inset)",
         }}
@@ -42,11 +46,17 @@ export function LeafFlowNodeView({
           {data.catalogType}
           {data.isGate ? " · gate" : ""}
         </p>
+        {hasFanOut ? (
+          <p
+            className="text-foreground mt-0.5 text-[0.6rem] leading-none font-medium tracking-wide"
+            data-testid="fan-out-marker"
+            data-appends-to={data.appendsTo}
+          >
+            append → {data.appendsToTitle ?? data.appendsTo}
+          </p>
+        ) : null}
       </div>
-      <ExecHandles
-        branches={data.execOutBranches}
-        bandTop={FLOW_LAYOUT.leafHeaderHeight}
-      />
+      <ExecHandles branches={data.execOutBranches} bandTop={headerHeight} />
       <NodePortHandles ports={data.ports} handleTops={dataHandleTops} />
     </div>
   );

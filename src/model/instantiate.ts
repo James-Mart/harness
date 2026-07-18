@@ -3,14 +3,18 @@ import {
   type CatalogEntryFor,
   type CatalogPortDef,
   type CatalogType,
+  type ContainerCatalogEntry,
 } from "@/model/catalog";
 import { itemSchemaOf, mockSchema } from "@/model/schema";
 import {
   CURRENT_ITEM_PORT_ID,
+  type Concurrency,
   type ContainerNode,
+  type EndCondition,
   type LeafNode,
   type NodeId,
   type Port,
+  type Source,
 } from "@/model/types";
 
 function materializePorts(defs: readonly CatalogPortDef[]): Port[] {
@@ -37,6 +41,14 @@ export type InstantiateOptions = {
   id: NodeId;
   title?: string;
   parentId?: NodeId;
+  /** Override catalog default source (containers). */
+  source?: Source;
+  /** Override catalog default concurrency (containers). */
+  concurrency?: Concurrency;
+  /** Override catalog default end condition (containers). */
+  end?: EndCondition;
+  /** Live container this leaf appends into (fan-out). */
+  appendsTo?: NodeId;
 };
 
 export type InstantiatedNode<T extends CatalogType> = {
@@ -62,27 +74,42 @@ export function instantiateFromCatalog<T extends CatalogType>(
       ports,
       ...(options.parentId !== undefined ? { parentId: options.parentId } : {}),
       ...("isGate" in entry && entry.isGate ? { isGate: true } : {}),
+      ...(options.appendsTo !== undefined
+        ? { appendsTo: options.appendsTo }
+        : {}),
     };
     return node as InstantiatedNode<T>;
   }
 
-  const iterablePort = ports.find((port) => port.id === entry.iterablePortId);
+  const containerEntry = entry as ContainerCatalogEntry;
+  const iterablePort = ports.find(
+    (port) => port.id === containerEntry.iterablePortId,
+  );
   if (!iterablePort?.iterable) {
     throw new Error(
-      `Container catalog type ${type} iterable port ${entry.iterablePortId} not found`,
+      `Container catalog type ${type} iterable port ${containerEntry.iterablePortId} not found`,
+    );
+  }
+
+  const source = options.source ?? containerEntry.defaultSource;
+  const end = options.end ?? containerEntry.defaultEnd;
+  if (end?.kind === "fixpoint" && source.kind !== "live") {
+    throw new Error(
+      `Container ${options.id}: fixpoint end requires a live source`,
     );
   }
 
   const node: ContainerNode = {
     kind: "container",
     id: options.id,
-    type: entry.type,
-    title: options.title ?? entry.title,
+    type: containerEntry.type,
+    title: options.title ?? containerEntry.title,
     ports: [...ports, currentItemPort(iterablePort)],
     ...(options.parentId !== undefined ? { parentId: options.parentId } : {}),
-    iterablePortId: entry.iterablePortId,
-    source: entry.defaultSource,
-    concurrency: entry.defaultConcurrency,
+    iterablePortId: containerEntry.iterablePortId,
+    source,
+    concurrency: options.concurrency ?? containerEntry.defaultConcurrency,
+    ...(end !== undefined ? { end } : {}),
   };
   return node as InstantiatedNode<T>;
 }

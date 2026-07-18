@@ -22,6 +22,13 @@ type BodyNodeShellProps = {
   className?: string;
   headerClassName?: string;
   bodyTestId: string;
+  /** Optional badge / cue rows under the subtitle (work-pool affordances). */
+  badges?: ReactNode;
+  /**
+   * Explicit header height (e.g. `containerChromeHeaderHeight`). When omitted,
+   * uses the kind's base token (`harnessHeaderHeight` / `containerHeaderHeight`).
+   */
+  headerHeight?: number;
 };
 
 /**
@@ -39,11 +46,24 @@ export function BodyNodeShell({
   className,
   headerClassName,
   bodyTestId,
+  badges,
+  headerHeight: headerHeightProp,
 }: BodyNodeShellProps): ReactNode {
   const execOutCount =
     execOutBranches === undefined ? 0 : Math.max(1, execOutBranches.length);
+  const headerHeight =
+    headerHeightProp ??
+    (kind === "harness"
+      ? FLOW_LAYOUT.harnessHeaderHeight
+      : FLOW_LAYOUT.containerHeaderHeight);
   const dataHandleTops = (count: number) =>
-    containerHeaderPortHandleTops(count, execOutCount);
+    containerHeaderPortHandleTops(count, execOutCount, headerHeight);
+  const cssVars = {
+    ...flowLayoutCssVars,
+    ...(kind === "container"
+      ? { "--flow-container-header-height": `${headerHeight}px` }
+      : {}),
+  };
 
   return (
     <div
@@ -52,13 +72,13 @@ export function BodyNodeShell({
         selected && "border-ring ring-ring/30 ring-2",
         className,
       )}
-      style={flowLayoutCssVars}
+      style={cssVars}
       data-testid={`flow-node-${id}`}
       data-kind={kind}
     >
       <div
         className={cn("border-border relative border-b", headerClassName)}
-        style={{ height: "var(--flow-container-header-height)" }}
+        style={{ height: headerHeight }}
       >
         <div
           className="flex h-full min-w-0 items-start"
@@ -68,11 +88,12 @@ export function BodyNodeShell({
             paddingTop: "0.5rem",
           }}
         >
-          <div className="min-w-0">
+          <div className="min-w-0 overflow-hidden">
             <p className="text-sm font-medium leading-tight">{title}</p>
             <p className="text-muted-foreground mt-0.5 text-[0.65rem] tracking-wide uppercase">
               {subtitle}
             </p>
+            {badges}
           </div>
         </div>
         {execOutBranches !== undefined ? (
@@ -85,9 +106,7 @@ export function BodyNodeShell({
       </div>
       <div
         className="w-full"
-        style={{
-          height: "calc(100% - var(--flow-container-header-height))",
-        }}
+        style={{ height: `calc(100% - ${headerHeight}px)` }}
         data-testid={bodyTestId}
         aria-label={`${title} body`}
       />

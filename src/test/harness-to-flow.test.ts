@@ -5,13 +5,18 @@ import {
   harnessToFlowNodes,
 } from "@/components/canvas/harnessToFlow";
 import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
-import { FLOW_LAYOUT } from "@/components/canvas/layoutTokens";
+import {
+  FLOW_LAYOUT,
+  containerChromeHeaderHeight,
+} from "@/components/canvas/layoutTokens";
+import { appendEdgeId } from "@/components/canvas/workpoolVisuals";
 import {
   CURRENT_ITEM_PORT_ID,
   EXEC_IN_HANDLE,
   EXEC_OUT_HANDLE,
   createBaseSeedHarness,
   createBranchingSeedHarness,
+  createWorkPoolSeedHarness,
   dataEdgeId,
   execEdgeId,
   execOutHandleId,
@@ -57,7 +62,7 @@ describe("harnessToFlowNodes", () => {
     expect(source.data.ports.map((port) => port.id)).toEqual(["items"]);
     expect(source.position).toEqual({
       x: FLOW_LAYOUT.containerPadX,
-      y: FLOW_LAYOUT.containerHeaderHeight + FLOW_LAYOUT.containerPadY,
+      y: FLOW_LAYOUT.harnessHeaderHeight + FLOW_LAYOUT.containerPadY,
     });
 
     expect(loop?.type).toBe("container");
@@ -69,7 +74,10 @@ describe("harnessToFlowNodes", () => {
       catalogType: "foreach",
       iterablePortId: "items",
       sourceKind: "snapshot",
+      concurrency: { kind: "sequential" },
+      hasFanOut: false,
     });
+    expect(loop.data.end).toBeUndefined();
     expect(loop.data.execOutBranches).toEqual([undefined]);
     expect(loop.data.ports.map((port) => port.id)).toEqual([
       "items",
@@ -93,7 +101,7 @@ describe("harnessToFlowNodes", () => {
     ]);
     expect(worker.position).toEqual({
       x: FLOW_LAYOUT.containerPadX,
-      y: FLOW_LAYOUT.containerHeaderHeight + FLOW_LAYOUT.containerPadY,
+      y: containerChromeHeaderHeight() + FLOW_LAYOUT.containerPadY,
     });
     expect(worker.style?.height).toBeGreaterThan(FLOW_LAYOUT.leafMinHeight - 1);
   });
@@ -106,6 +114,32 @@ describe("harnessToFlowNodes", () => {
     if (gate?.type !== "leaf") throw new Error("expected leaf gate");
     expect(gate.data.execOutBranches).toEqual(["ok", "deny"]);
     expect(gate.data.isGate).toBe(true);
+  });
+
+  it("maps work-pool concurrency, live source, fixpoint, and fan-out", () => {
+    const harness = createWorkPoolSeedHarness();
+    const nodes = harnessToFlowNodes(harness);
+    const pool = nodes.find((node) => node.id === "pool");
+    const fanOut = nodes.find((node) => node.id === "fanOut");
+
+    expect(pool?.type).toBe("container");
+    if (pool?.type !== "container") throw new Error("expected container pool");
+    expect(pool.data).toMatchObject({
+      catalogType: "workPool",
+      sourceKind: "live",
+      concurrency: { kind: "parallel", maxConcurrency: 4 },
+      end: { kind: "fixpoint" },
+      hasFanOut: true,
+      advisoryCues: [],
+    });
+
+    expect(fanOut?.type).toBe("leaf");
+    if (fanOut?.type !== "leaf") throw new Error("expected leaf fanOut");
+    expect(fanOut.data.appendsTo).toBe("pool");
+    expect(fanOut.data.appendsToTitle).toBe("Work pool");
+    expect(fanOut.style?.height).toBeGreaterThan(
+      FLOW_LAYOUT.leafMinHeight + FLOW_LAYOUT.leafFanOutMarkerHeight - 1,
+    );
   });
 });
 
@@ -169,5 +203,20 @@ describe("harnessToFlowEdges", () => {
       data: { kind: "exec", branch: "ok" },
     });
     expect(ok?.markerEnd).toBeTruthy();
+  });
+
+  it("maps fan-out append relationships as dashed append edges", () => {
+    const harness = createWorkPoolSeedHarness();
+    const edges = harnessToFlowEdges(harness);
+    const append = edges.find((edge) => edge.data?.kind === "append");
+    expect(append).toMatchObject({
+      id: appendEdgeId("fanOut", "pool"),
+      source: "fanOut",
+      target: "pool",
+      label: "append",
+      type: "smoothstep",
+      data: { kind: "append" },
+    });
+    expect(append?.style).toMatchObject({ strokeDasharray: "5 4" });
   });
 });
