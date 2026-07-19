@@ -1,3 +1,4 @@
+import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import type { HarnessFlowNode } from "@/components/canvas/flowTypes";
 
 /** Geometry fields used to resolve absolute flow-space rects. */
@@ -12,6 +13,13 @@ export type FlowGeometryNode = Pick<
   | "measured"
   | "style"
 >;
+
+/** Flow nodes that sit directly under the harness boundary (model roots). */
+export function harnessRootFlowNodes<T extends FlowGeometryNode>(
+  nodes: readonly T[],
+): T[] {
+  return nodes.filter((node) => node.parentId === HARNESS_FLOW_NODE_ID);
+}
 
 /** Absolute (flow-coordinate) bounding box of a rendered node. */
 export type FlowRect = { x: number; y: number; width: number; height: number };
@@ -86,4 +94,24 @@ export function flowNodeRects(
     rects.set(node.id, nodeRect(node, byId));
   }
   return rects;
+}
+
+/** Axis-aligned overlap (touching edges do not count). */
+export function rectsOverlap(a: FlowRect, b: FlowRect): boolean {
+  return (
+    a.x < b.x + b.width &&
+    b.x < a.x + a.width &&
+    a.y < b.y + b.height &&
+    b.y < a.y + a.height
+  );
+}
+
+/** True when `child` lies entirely inside `parent` (inclusive edges). */
+export function containsRect(parent: FlowRect, child: FlowRect): boolean {
+  return (
+    child.x >= parent.x &&
+    child.y >= parent.y &&
+    child.x + child.width <= parent.x + parent.width &&
+    child.y + child.height <= parent.y + parent.height
+  );
 }

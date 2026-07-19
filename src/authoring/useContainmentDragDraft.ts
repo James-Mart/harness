@@ -12,8 +12,9 @@ import {
 } from "@xyflow/react";
 
 import { resolveContainmentParent } from "@/authoring/containment";
+import { persistHarnessRootLayout } from "@/authoring/layoutPersistence";
 import type { HarnessFlowNode } from "@/components/canvas/flowTypes";
-import { reparentNode, setNodePosition, type Harness } from "@/model";
+import { reparentNode, type Harness } from "@/model";
 
 /**
  * Ephemeral React Flow positions during a node drag, committed to harness
@@ -61,15 +62,11 @@ export function useContainmentDragDraft(
       // Controlled positions live in dragNodes — not RF's callback node list.
       const geometry = dragNodes ?? flowNodes;
       const parentId = resolveContainmentParent(node.id, geometry);
-      const dragged = geometry.find((entry) => entry.id === node.id);
       setHarness((current) => {
-        let next = reparentNode(current, node.id, parentId);
-        // Top-level nodes persist flow-space placement so they do not snap
-        // back to auto-layout / a stale create-time position after drag.
-        if (parentId === undefined && dragged) {
-          next = setNodePosition(next, node.id, dragged.position);
-        }
-        return next;
+        const next = reparentNode(current, node.id, parentId);
+        // Nesting skips freeze (reparent clears position on the nested node).
+        if (parentId !== undefined) return next;
+        return persistHarnessRootLayout(next, geometry, node.id);
       });
       dragActiveRef.current = false;
       setDragNodes(null);

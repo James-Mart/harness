@@ -15,7 +15,7 @@ export {
   type InstantiatedNode,
 } from "@/model/instantiate";
 export { addCatalogNode, type AddCatalogNodeOptions } from "@/model/addNode";
-export { reparentNode, setNodePosition } from "@/model/reparent";
+export { reparentNode, setNodePosition, setNodePositions } from "@/model/reparent";
 export { parseOptionalPositiveInt } from "@/model/parseOptionalPositiveInt";
 export {
   parseMaxConcurrencyInput,
