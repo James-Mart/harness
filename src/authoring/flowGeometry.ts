@@ -18,7 +18,9 @@ export type FlowGeometryNode = Pick<
 export function harnessRootFlowNodes<T extends FlowGeometryNode>(
   nodes: readonly T[],
 ): T[] {
-  return nodes.filter((node) => node.parentId === HARNESS_FLOW_NODE_ID);
+  return nodes.filter(
+    (node) => node.parentId === HARNESS_FLOW_NODE_ID && node.type !== "helper",
+  );
 }
 
 /** Absolute (flow-coordinate) bounding box of a rendered node. */

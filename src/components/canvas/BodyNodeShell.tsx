@@ -50,7 +50,10 @@ export function BodyNodeShell({
   headerHeight: headerHeightProp,
 }: BodyNodeShellProps): ReactNode {
   const execOutCount =
-    execOutBranches === undefined ? 0 : Math.max(1, execOutBranches.length);
+    execOutBranches === undefined
+      ? 0
+      : // Empty branches = exec-in only (body outs live on the Exec helper).
+        Math.max(execOutBranches.length, 1);
   const headerHeight =
     headerHeightProp ??
     (kind === "harness"

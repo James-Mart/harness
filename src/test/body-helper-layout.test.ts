@@ -93,44 +93,34 @@ describe("body helper layout strips", () => {
     expect(helper.data).toEqual({ kind: "exec", title: "Exec", ports: [] });
   });
 
-  it("holds layout invariants when a top-strip helper is placed in the body", () => {
+  it("holds layout invariants with the body top-strip Exec helper", () => {
     const nodes = harnessToFlowNodes(createBaseSeedHarness());
-    const header = containerChromeHeaderHeight();
-    const withHelper = [
-      ...nodes,
-      toHelperFlowNode({
-        bodyId: "loop",
-        kind: "exec",
-        title: "Exec",
-        position: bodyTopStripOrigin(header),
-      }),
-    ];
-    assertLayoutInvariants(withHelper);
+    assertLayoutInvariants(nodes);
 
-    const helper = withHelper.find(
+    const helper = nodes.find(
       (node) => node.id === bodyHelperNodeId("loop", "exec"),
     );
-    const worker = withHelper.find((node) => node.id === "worker");
+    const worker = nodes.find((node) => node.id === "worker");
     expect(helper).toBeDefined();
     expect(worker).toBeDefined();
+    expect(helper!.position).toEqual(
+      bodyTopStripOrigin(containerChromeHeaderHeight()),
+    );
     expect(worker!.position.y).toBeGreaterThanOrEqual(
       helper!.position.y + FLOW_LAYOUT.helperNodeHeight,
     );
   });
 
   it.each(SEED_HARNESSES.map((create) => [create.name, create] as const))(
-    "keeps %s layout invariants with a canvas-level top-strip helper",
+    "keeps %s layout invariants with canvas-level Exec helper",
     (_name, create) => {
       const nodes = harnessToFlowNodes(create());
-      assertLayoutInvariants([
-        ...nodes,
-        toHelperFlowNode({
-          bodyId: HARNESS_FLOW_NODE_ID,
-          kind: "exec",
-          title: "Exec",
-          position: bodyTopStripOrigin(FLOW_LAYOUT.harnessHeaderHeight),
-        }),
-      ]);
+      assertLayoutInvariants(nodes);
+      expect(
+        nodes.find(
+          (node) => node.id === bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "exec"),
+        ),
+      ).toBeDefined();
     },
   );
 });

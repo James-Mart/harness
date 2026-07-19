@@ -52,23 +52,19 @@ export type HelperFlowData = {
   kind: BodyHelperKind;
   title: string;
   ports: readonly Port[];
+  /** Exec-out slots for Exec helpers (body-entry branches). */
+  execOutBranches?: (string | undefined)[];
 };
 
 export type HarnessFlowData =
-  | LeafFlowData
-  | ContainerFlowData
-  | HarnessBoundaryFlowData
-  | HelperFlowData;
+  LeafFlowData | ContainerFlowData | HarnessBoundaryFlowData | HelperFlowData;
 
 export type LeafFlowNode = Node<LeafFlowData, "leaf">;
 export type ContainerFlowNode = Node<ContainerFlowData, "container">;
 export type HarnessBoundaryFlowNode = Node<HarnessBoundaryFlowData, "harness">;
 export type HelperFlowNode = Node<HelperFlowData, "helper">;
 export type HarnessFlowNode =
-  | LeafFlowNode
-  | ContainerFlowNode
-  | HarnessBoundaryFlowNode
-  | HelperFlowNode;
+  LeafFlowNode | ContainerFlowNode | HarnessBoundaryFlowNode | HelperFlowNode;
 
 export type DataFlowEdgeData = { kind: "data" };
 export type ExecFlowEdgeData = { kind: "exec"; branch?: string };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  bodyHelperNodeId,
   harnessToFlowEdges,
   harnessToFlowNodes,
 } from "@/components/canvas/harnessToFlow";
@@ -32,8 +33,10 @@ describe("harnessToFlowNodes", () => {
 
     expect(nodes.map((node) => node.id)).toEqual([
       HARNESS_FLOW_NODE_ID,
+      bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "exec"),
       "source",
       "loop",
+      bodyHelperNodeId("loop", "exec"),
       "worker",
     ]);
 
@@ -81,7 +84,8 @@ describe("harnessToFlowNodes", () => {
       hasFanOut: false,
     });
     expect(loop.data.end).toBeUndefined();
-    expect(loop.data.execOutBranches).toEqual([undefined]);
+    // Body-entry outs live on the Exec helper; loop has no sibling outs.
+    expect(loop.data.execOutBranches).toEqual([]);
     expect(loop.data.ports.map((port) => port.id)).toEqual([
       "items",
       CURRENT_ITEM_PORT_ID,
@@ -207,6 +211,14 @@ describe("harnessToFlowEdges", () => {
     });
     expect(sequential?.markerEnd).toBeTruthy();
     expect(sequential?.label).toBeUndefined();
+
+    const bodyEntry = execEdges.find((edge) => edge.id === "exec:loop->worker");
+    expect(bodyEntry).toMatchObject({
+      source: bodyHelperNodeId("loop", "exec"),
+      sourceHandle: EXEC_OUT_HANDLE,
+      target: "worker",
+      targetHandle: EXEC_IN_HANDLE,
+    });
 
     const ok = execEdges.find(
       (edge) => edge.id === execEdgeId("gate", "onOk", "ok"),

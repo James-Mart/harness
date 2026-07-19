@@ -56,6 +56,21 @@ function execOutEdges(harness: Harness, from: NodeId): ExecEdge[] {
   );
 }
 
+/** Distinct `branch` values from exec edges (order preserved, first wins). */
+export function distinctExecBranches(
+  edges: readonly ExecEdge[],
+): (string | undefined)[] {
+  const seen = new Set<string>();
+  const branches: (string | undefined)[] = [];
+  for (const edge of edges) {
+    const key = edge.branch ?? "";
+    if (seen.has(key)) continue;
+    seen.add(key);
+    branches.push(edge.branch);
+  }
+  return branches;
+}
+
 /**
  * Exec-out slots to render for a node: prefer distinct `branch` values from
  * outgoing exec edges (graph is source of truth); if none, fall back to
@@ -66,17 +81,7 @@ export function execOutBranchesForNode(
   node: Node,
 ): (string | undefined)[] {
   const outs = execOutEdges(harness, node.id);
-  if (outs.length > 0) {
-    const seen = new Set<string>();
-    const branches: (string | undefined)[] = [];
-    for (const edge of outs) {
-      const key = edge.branch ?? "";
-      if (seen.has(key)) continue;
-      seen.add(key);
-      branches.push(edge.branch);
-    }
-    return branches;
-  }
+  if (outs.length > 0) return distinctExecBranches(outs);
 
   const fromSchema = branchValuesFromPorts(node.ports);
   return fromSchema.length > 0 ? fromSchema : [undefined];

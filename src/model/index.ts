@@ -38,6 +38,7 @@ export {
   EXEC_OUT_HANDLE,
   branchValuesFromNode,
   branchValuesFromPorts,
+  distinctExecBranches,
   execEdgeId,
   execOutBranchesForNode,
   execOutHandleId,
