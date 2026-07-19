@@ -24,7 +24,7 @@ export type LayoutInvariantViolation =
   | { kind: "missingRect"; nodeId: string }
   | { kind: "missingParent"; childId: string; parentId: string };
 
-/** Group flow nodes by parent id (`undefined` = canvas roots, incl. harness). */
+/** Group flow nodes by parent id (`undefined` = open-canvas roots). */
 function siblingsByParent(
   nodes: readonly FlowGeometryNode[],
 ): Map<string | undefined, FlowGeometryNode[]> {

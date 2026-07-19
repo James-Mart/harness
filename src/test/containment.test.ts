@@ -177,7 +177,7 @@ describe("resolveContainmentParent", () => {
     );
   });
 
-  it("un-nests when the drop center hits only the harness shell", () => {
+  it("un-nests when the drop center hits only the open canvas", () => {
     expect(
       resolveContainmentParent("worker", unnestWorkerOntoHarnessNodes()),
     ).toBeUndefined();

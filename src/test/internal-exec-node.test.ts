@@ -41,9 +41,9 @@ describe("internal Exec node", () => {
       const canvasExec = nodes.find(
         (node) => node.id === bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "exec"),
       );
+      expect(canvasExec?.parentId).toBeUndefined();
       expect(canvasExec).toMatchObject({
         type: "helper",
-        parentId: HARNESS_FLOW_NODE_ID,
         draggable: false,
         deletable: false,
         selectable: false,

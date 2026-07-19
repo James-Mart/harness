@@ -119,22 +119,6 @@ describe("port layout helpers", () => {
     }
   });
 
-  it("uses harness header height for boundary port band", () => {
-    const tops = containerHeaderPortHandleTops(
-      2,
-      0,
-      FLOW_LAYOUT.harnessHeaderHeight,
-    );
-    expect(tops).toHaveLength(2);
-    for (const top of tops) {
-      expect(top).toBeGreaterThan(0);
-      expect(top).toBeLessThan(FLOW_LAYOUT.harnessHeaderHeight);
-    }
-    expect(FLOW_LAYOUT.harnessHeaderHeight).toBeLessThan(
-      FLOW_LAYOUT.containerHeaderHeight,
-    );
-  });
-
   it("uses the full header band when execOutCount is 0", () => {
     for (const count of [1, 2]) {
       const tops = containerHeaderPortHandleTops(count, 0);

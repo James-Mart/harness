@@ -37,9 +37,9 @@ function nestingDepth(
 /**
  * Resolve the harness model `parentId` after a node drag stops.
  *
- * Hits the deepest container (or harness shell) whose bounds contain the
- * dragged node's center. The harness shell maps to `undefined` (top-level).
- * Leaves are never parents. Targets under the dragged node are ignored so
+ * Hits the deepest container whose bounds contain the dragged node's center.
+ * Open canvas (no container hit) maps to `undefined` (top-level). Leaves and
+ * helpers are never parents. Targets under the dragged node are ignored so
  * cycles cannot form.
  */
 export function resolveContainmentParent(
@@ -58,7 +58,7 @@ export function resolveContainmentParent(
 
   const candidates = flowNodes.filter((node) => {
     if (node.id === draggedId) return false;
-    if (node.type !== "container" && node.type !== "harness") return false;
+    if (node.type !== "container") return false;
     // Do not parent into a descendant of the dragged node.
     if (isAncestorOf((id) => byId.get(id)?.parentId, draggedId, node.id)) {
       return false;
@@ -71,7 +71,5 @@ export function resolveContainmentParent(
   candidates.sort(
     (a, b) => nestingDepth(b.id, byId) - nestingDepth(a.id, byId),
   );
-  const hit = candidates[0]!;
-  if (hit.type === "harness") return undefined;
-  return hit.id;
+  return candidates[0]!.id;
 }

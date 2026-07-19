@@ -17,7 +17,6 @@ import {
 import { connectionEndpoints } from "@/components/canvas/connectionAdapter";
 import { flowEdgeToInspectorView } from "@/components/canvas/flowEdgeInspector";
 import { HarnessCanvas } from "@/components/canvas/HarnessCanvas";
-import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import {
   harnessToFlowEdges,
   harnessToFlowNodes,
@@ -134,13 +133,6 @@ export function EditorLayout({
   const inspectorTarget = useMemo<InspectorTarget>(() => {
     const primaryId = selectedNodeIds[0];
     if (primaryId !== undefined) {
-      if (primaryId === HARNESS_FLOW_NODE_ID) {
-        return {
-          kind: "harness",
-          title: harness.title,
-          ports: harness.boundary,
-        };
-      }
       const node = harness.nodes.find((entry) => entry.id === primaryId);
       return node ? { kind: "node", node } : null;
     }
@@ -186,9 +178,7 @@ export function EditorLayout({
       nodeIds?: readonly NodeId[];
       edgeIds?: readonly string[];
     }) => {
-      const nodeIds = (selection.nodeIds ?? []).filter(
-        (id) => id !== HARNESS_FLOW_NODE_ID,
-      );
+      const nodeIds = selection.nodeIds ?? [];
       const edgeIds = selection.edgeIds ?? [];
       if (nodeIds.length === 0 && edgeIds.length === 0) return;
       setHarness((current) => deleteSelection(current, { nodeIds, edgeIds }));

@@ -18,7 +18,6 @@ type BodyNodeShellProps = {
   ports: readonly Port[];
   /** When set, render exec handles and reserve header space for them. */
   execOutBranches?: readonly (string | undefined)[];
-  kind: "container" | "harness";
   className?: string;
   headerClassName?: string;
   bodyTestId: string;
@@ -26,14 +25,14 @@ type BodyNodeShellProps = {
   badges?: ReactNode;
   /**
    * Explicit header height (e.g. `containerChromeHeaderHeight`). When omitted,
-   * uses the kind's base token (`harnessHeaderHeight` / `containerHeaderHeight`).
+   * uses `containerHeaderHeight`.
    */
   headerHeight?: number;
 };
 
 /**
- * Shared chrome for container and harness-boundary nodes: header with
- * title/subtitle, optional exec band, data ports, and an empty body slot.
+ * Shared chrome for container nodes: header with title/subtitle, optional
+ * exec band, data ports, and an empty body slot.
  */
 export function BodyNodeShell({
   id,
@@ -42,7 +41,6 @@ export function BodyNodeShell({
   selected,
   ports,
   execOutBranches,
-  kind,
   className,
   headerClassName,
   bodyTestId,
@@ -55,17 +53,12 @@ export function BodyNodeShell({
       : // Empty branches = exec-in only (body outs live on the Exec helper).
         Math.max(execOutBranches.length, 1);
   const headerHeight =
-    headerHeightProp ??
-    (kind === "harness"
-      ? FLOW_LAYOUT.harnessHeaderHeight
-      : FLOW_LAYOUT.containerHeaderHeight);
+    headerHeightProp ?? FLOW_LAYOUT.containerHeaderHeight;
   const dataHandleTops = (count: number) =>
     containerHeaderPortHandleTops(count, execOutCount, headerHeight);
   const cssVars = {
     ...flowLayoutCssVars,
-    ...(kind === "container"
-      ? { "--flow-container-header-height": `${headerHeight}px` }
-      : {}),
+    "--flow-container-header-height": `${headerHeight}px`,
   };
 
   return (
@@ -77,7 +70,7 @@ export function BodyNodeShell({
       )}
       style={cssVars}
       data-testid={`flow-node-${id}`}
-      data-kind={kind}
+      data-kind="container"
     >
       <div
         className={cn("border-border relative border-b", headerClassName)}

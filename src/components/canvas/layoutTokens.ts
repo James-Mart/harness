@@ -19,8 +19,6 @@ export const FLOW_LAYOUT = {
   containerMinWidth: 260,
   containerPadX: 20,
   containerPadY: 16,
-  /** Title + subtitle only (harness boundary has no badge row). */
-  harnessHeaderHeight: 52,
   /** Title + subtitle + single-line work-pool badge row. */
   containerHeaderHeight: 72,
   /** Extra header room when advisory cue badges are present. */
@@ -134,7 +132,6 @@ export const flowLayoutCssVars = {
   "--flow-leaf-pad-y": `${FLOW_LAYOUT.leafPadY}px`,
   "--flow-port-label-inset": `${FLOW_LAYOUT.portLabelInsetX}px`,
   "--flow-container-header-height": `${FLOW_LAYOUT.containerHeaderHeight}px`,
-  "--flow-harness-header-height": `${FLOW_LAYOUT.harnessHeaderHeight}px`,
   "--flow-container-pad-x": `${FLOW_LAYOUT.containerPadX}px`,
   "--flow-container-pad-y": `${FLOW_LAYOUT.containerPadY}px`,
 } as CSSProperties;
@@ -201,9 +198,9 @@ export function leafPortHandleTops(
 }
 
 /**
- * Container / harness-boundary data ports in the header band
- * (header-local Y). Pass `execOutCount === 0` for no exec stack
- * (harness boundary).
+ * Container data ports in the header band (header-local Y). Pass
+ * `execOutCount === 0` when the header has no exec stack (body outs live on
+ * the Exec helper).
  */
 export function containerHeaderPortHandleTops(
   count: number,

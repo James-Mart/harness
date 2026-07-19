@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import App from "@/App";
 import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
+import { bodyHelperNodeId } from "@/components/canvas/harnessToFlow";
 
 describe("harness toggle", () => {
   afterEach(() => {
@@ -27,8 +28,15 @@ describe("harness toggle", () => {
 
     const canvas = screen.getByTestId("editor-canvas");
     expect(
-      within(canvas).getByTestId(`flow-node-${HARNESS_FLOW_NODE_ID}`),
-    ).toHaveTextContent("Tracker harness");
+      canvas.querySelector(
+        `.react-flow__node[data-id="${HARNESS_FLOW_NODE_ID}"]`,
+      ),
+    ).toBeNull();
+    expect(
+      within(canvas).getByTestId(
+        `flow-node-${bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "variables")}`,
+      ),
+    ).toBeInTheDocument();
     expect(within(canvas).getByTestId("flow-node-epic")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("harness-seed-eunomio"));
@@ -39,8 +47,10 @@ describe("harness toggle", () => {
     );
     const nextCanvas = screen.getByTestId("editor-canvas");
     expect(
-      within(nextCanvas).getByTestId(`flow-node-${HARNESS_FLOW_NODE_ID}`),
-    ).toHaveTextContent("Eunomio harness");
+      nextCanvas.querySelector(
+        `.react-flow__node[data-id="${HARNESS_FLOW_NODE_ID}"]`,
+      ),
+    ).toBeNull();
     expect(
       within(nextCanvas).getByTestId("flow-node-partition"),
     ).toBeInTheDocument();

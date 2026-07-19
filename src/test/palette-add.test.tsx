@@ -96,18 +96,21 @@ describe("viewport-centre placement", () => {
     const gate = harnessToFlowNodes(harness).find(
       (node) => node.id === "gate-1",
     );
-    expect(gate?.parentId).toBe(HARNESS_FLOW_NODE_ID);
+    expect(gate?.parentId).toBeUndefined();
     expect(gate?.position).toEqual({ x: 500, y: 320 });
   });
 
-  it("keeps the harness shell large enough to contain a placed root", () => {
+  it("keeps a far-placed root at its persisted position without a shell", () => {
     const harness = addCatalogNode(createBaseSeedHarness(), "gate", {
       position: { x: 900, y: 600 },
     });
     const nodes = harnessToFlowNodes(harness);
-    const shell = nodes.find((node) => node.id === HARNESS_FLOW_NODE_ID);
-    expect(shell?.style?.width).toBeGreaterThan(900);
-    expect(shell?.style?.height).toBeGreaterThan(600);
+    expect(
+      nodes.find((node) => node.id === HARNESS_FLOW_NODE_ID),
+    ).toBeUndefined();
+    const gate = nodes.find((node) => node.id === "gate-1");
+    expect(gate?.parentId).toBeUndefined();
+    expect(gate?.position).toEqual({ x: 900, y: 600 });
   });
 
   it("still auto-layouts roots added without a position", () => {
@@ -115,9 +118,7 @@ describe("viewport-centre placement", () => {
     const gate = harnessToFlowNodes(harness).find(
       (node) => node.id === "gate-1",
     );
-    expect(gate?.position.y).toBe(
-      bodyChildrenOriginY(FLOW_LAYOUT.harnessHeaderHeight),
-    );
+    expect(gate?.position.y).toBe(bodyChildrenOriginY(0));
   });
 
   it("auto-layouts around a manually placed root without colliding slots", () => {

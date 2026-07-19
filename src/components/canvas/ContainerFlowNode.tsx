@@ -22,7 +22,6 @@ export function ContainerFlowNodeView({
       selected={selected}
       ports={data.ports}
       execOutBranches={data.execOutBranches}
-      kind="container"
       className="bg-muted/40 rounded-xl border-dashed"
       headerClassName="border-border/70 border-dashed"
       bodyTestId="container-body"

@@ -30,8 +30,9 @@ describe("harnessToFlowNodes", () => {
     const nodes = harnessToFlowNodes(harness);
 
     expect(nodes.map((node) => node.id)).toEqual([
-      HARNESS_FLOW_NODE_ID,
       bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "exec"),
+      bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "variables"),
+      bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "output"),
       "source",
       "loop",
       bodyHelperNodeId("loop", "exec"),
@@ -39,24 +40,43 @@ describe("harnessToFlowNodes", () => {
       "worker",
     ]);
 
-    const shell = nodes.find((node) => node.id === HARNESS_FLOW_NODE_ID);
+    expect(
+      nodes.find((node) => node.id === HARNESS_FLOW_NODE_ID),
+    ).toBeUndefined();
+
     const source = nodes.find((node) => node.id === "source");
     const loop = nodes.find((node) => node.id === "loop");
     const worker = nodes.find((node) => node.id === "worker");
+    const canvasVariables = nodes.find(
+      (node) =>
+        node.id === bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "variables"),
+    );
+    const canvasOutput = nodes.find(
+      (node) => node.id === bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "output"),
+    );
 
-    expect(shell?.type).toBe("harness");
-    expect(shell?.parentId).toBeUndefined();
-    expect(shell?.draggable).toBe(false);
-    expect(shell?.data).toEqual({
-      title: harness.title,
-      ports: harness.boundary,
+    expect(canvasVariables?.parentId).toBeUndefined();
+    expect(canvasVariables).toMatchObject({
+      type: "helper",
+      data: {
+        kind: "variables",
+        title: "Variables",
+        ports: [{ id: "tasks", direction: "out" }],
+      },
     });
-    expect(shell?.style?.width).toBeGreaterThan(0);
-    expect(shell?.style?.height).toBeGreaterThan(0);
+    expect(canvasOutput?.parentId).toBeUndefined();
+    expect(canvasOutput).toMatchObject({
+      type: "helper",
+      data: {
+        kind: "output",
+        title: "Output",
+        ports: [{ id: "summary", direction: "in" }],
+      },
+    });
 
     expect(source?.type).toBe("leaf");
     if (source?.type !== "leaf") throw new Error("expected leaf source");
-    expect(source.parentId).toBe(HARNESS_FLOW_NODE_ID);
+    expect(source.parentId).toBeUndefined();
     expect(source.extent).toBeUndefined();
     expect(source.data.title).toBe("List source");
     expect(source.data.catalogType).toBe("listSource");
@@ -67,12 +87,12 @@ describe("harnessToFlowNodes", () => {
     expect(source.data.ports.map((port) => port.id)).toEqual(["items"]);
     expect(source.position).toEqual({
       x: FLOW_LAYOUT.containerPadX,
-      y: bodyChildrenOriginY(FLOW_LAYOUT.harnessHeaderHeight),
+      y: bodyChildrenOriginY(0),
     });
 
     expect(loop?.type).toBe("container");
     if (loop?.type !== "container") throw new Error("expected container loop");
-    expect(loop.parentId).toBe(HARNESS_FLOW_NODE_ID);
+    expect(loop.parentId).toBeUndefined();
     expect(loop.extent).toBeUndefined();
     expect(loop.data).toMatchObject({
       title: "For each",

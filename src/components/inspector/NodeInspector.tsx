@@ -12,11 +12,10 @@ import {
 } from "@/components/inspector/StructuralParams";
 import { EditorSidebar } from "@/components/layout/EditorSidebar";
 import type { NodeUpdate, RunConfigUpdate } from "@/model";
-import type { Node, Port, RunConfig } from "@/model/types";
+import type { Node, RunConfig } from "@/model/types";
 
 export type InspectorTarget =
   | { kind: "node"; node: Node }
-  | { kind: "harness"; title: string; ports: Port[] }
   | { kind: "edge"; edge: InspectorEdgeView }
   | null;
 
@@ -133,18 +132,6 @@ export function NodeInspector({
               Delete edge
             </Button>
           ) : null}
-        </div>
-      ) : target?.kind === "harness" ? (
-        <div className="space-y-4">
-          <InspectorCard>
-            <p className="text-sm font-medium" data-testid="inspector-title">
-              {target.title}
-            </p>
-            <p className="text-muted-foreground mt-0.5 text-xs">Harness</p>
-          </InspectorCard>
-          <InspectorCard>
-            <SignatureSection ports={target.ports} />
-          </InspectorCard>
         </div>
       ) : (
         <InspectorCard>
