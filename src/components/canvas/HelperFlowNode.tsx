@@ -5,7 +5,9 @@ import type { HelperFlowNode } from "@/components/canvas/flowTypes";
 import {
   FLOW_LAYOUT,
   flowLayoutCssVars,
+  portHandleTopsInBand,
 } from "@/components/canvas/layoutTokens";
+import { NodePortHandles } from "@/components/canvas/NodePortHandles";
 import { cn } from "@/lib/utils";
 
 /**
@@ -14,6 +16,8 @@ import { cn } from "@/lib/utils";
  */
 export function HelperFlowNodeView({ id, data }: NodeProps<HelperFlowNode>) {
   const showExecOut = data.kind === "exec";
+  const showDataPorts = data.ports.length > 0;
+  const height = FLOW_LAYOUT.helperNodeHeight;
 
   return (
     <div
@@ -37,11 +41,14 @@ export function HelperFlowNodeView({ id, data }: NodeProps<HelperFlowNode>) {
       {showExecOut ? (
         <ExecHandles
           branches={data.execOutBranches ?? [undefined]}
-          bandTop={
-            (FLOW_LAYOUT.helperNodeHeight - FLOW_LAYOUT.execBranchHandleStep) /
-            2
-          }
+          bandTop={(height - FLOW_LAYOUT.execBranchHandleStep) / 2}
           showIn={false}
+        />
+      ) : null}
+      {showDataPorts ? (
+        <NodePortHandles
+          ports={data.ports}
+          handleTops={(count) => portHandleTopsInBand(count, 0, height)}
         />
       ) : null}
     </div>

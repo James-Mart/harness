@@ -119,8 +119,13 @@ export function instantiateFromCatalog<T extends CatalogType>(
   return node as InstantiatedNode<T>;
 }
 
+/** `$currentItem` when present; `undefined` for non-iterating / stripped containers. */
+export function tryGetCurrentItemPort(node: ContainerNode): Port | undefined {
+  return node.ports.find((item) => item.id === CURRENT_ITEM_PORT_ID);
+}
+
 export function getCurrentItemPort(node: ContainerNode): Port {
-  const port = node.ports.find((item) => item.id === CURRENT_ITEM_PORT_ID);
+  const port = tryGetCurrentItemPort(node);
   if (!port) {
     throw new Error(
       `Container ${node.id} is missing built-in ${CURRENT_ITEM_PORT_ID} port`,
