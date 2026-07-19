@@ -2,6 +2,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
+import { bodyHelperNodeId } from "@/components/canvas/harnessToFlow";
 import { EditorLayout } from "@/components/layout/EditorLayout";
 import {
   CURRENT_ITEM_PORT_ID,
@@ -59,9 +60,15 @@ describe("canvas render", () => {
       "data-port-direction",
       "in",
     );
+    // DOM smoke: `$currentItem` lives on Variables, not outer chrome.
     expect(
-      within(loop).getByTestId(`port-${CURRENT_ITEM_PORT_ID}`),
-    ).toHaveAttribute("data-port-direction", "out");
+      within(loop).queryByTestId(`port-${CURRENT_ITEM_PORT_ID}`),
+    ).toBeNull();
+    expect(
+      within(canvas).getByTestId(
+        `flow-node-${bodyHelperNodeId("loop", "variables")}`,
+      ),
+    ).toHaveAttribute("data-helper-kind", "variables");
     expect(within(loop).getByTestId("container-body")).toBeInTheDocument();
 
     expect(worker).toHaveAttribute("data-kind", "leaf");

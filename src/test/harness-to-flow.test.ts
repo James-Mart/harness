@@ -13,7 +13,6 @@ import {
 } from "@/components/canvas/layoutTokens";
 import { appendEdgeId } from "@/model";
 import {
-  CURRENT_ITEM_PORT_ID,
   EXEC_IN_HANDLE,
   EXEC_OUT_HANDLE,
   createBaseSeedHarness,
@@ -22,7 +21,6 @@ import {
   dataEdgeId,
   execEdgeId,
   execOutHandleId,
-  mockSchema,
   updateRunConfig,
 } from "@/model";
 
@@ -37,6 +35,7 @@ describe("harnessToFlowNodes", () => {
       "source",
       "loop",
       bodyHelperNodeId("loop", "exec"),
+      bodyHelperNodeId("loop", "variables"),
       "worker",
     ]);
 
@@ -86,13 +85,7 @@ describe("harnessToFlowNodes", () => {
     expect(loop.data.end).toBeUndefined();
     // Body-entry outs live on the Exec helper; loop has no sibling outs.
     expect(loop.data.execOutBranches).toEqual([]);
-    expect(loop.data.ports.map((port) => port.id)).toEqual([
-      "items",
-      CURRENT_ITEM_PORT_ID,
-    ]);
-    expect(
-      loop.data.ports.find((port) => port.id === CURRENT_ITEM_PORT_ID)?.schema,
-    ).toEqual(mockSchema("task"));
+    expect(loop.data.ports.map((port) => port.id)).toEqual(["items"]);
     expect(loop.style?.width).toBeGreaterThan(0);
     expect(loop.style?.height).toBeGreaterThan(0);
 

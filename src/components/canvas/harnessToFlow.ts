@@ -32,13 +32,15 @@ import {
   type ExecEdge,
 } from "@/model/exec";
 import { effectiveConcurrency, isGateEnabled } from "@/model/readySet";
-import type {
-  Harness,
-  LeafNode,
-  Node as HarnessNode,
-  NodeId,
-  NodePosition,
-  Port,
+import { tryGetCurrentItemPort } from "@/model/instantiate";
+import {
+  CURRENT_ITEM_PORT_ID,
+  type Harness,
+  type LeafNode,
+  type Node as HarnessNode,
+  type NodeId,
+  type NodePosition,
+  type Port,
 } from "@/model/types";
 import type { AdvisoryCue } from "@/model/advisoryCueTypes";
 import { wiringAdvisoryCues } from "@/model/validationCues";
@@ -60,6 +62,37 @@ type Size = { width: number; height: number };
 /** Stable React Flow id for a synthetic body-helper node. */
 export function bodyHelperNodeId(bodyId: string, kind: BodyHelperKind): string {
   return `${bodyId}/$${kind}`;
+}
+
+const BODY_HELPER_KINDS: readonly BodyHelperKind[] = [
+  "exec",
+  "variables",
+  "output",
+];
+
+/**
+ * Parse a synthetic body-helper flow id (`${bodyId}/$kind`) back to its body
+ * and kind. Returns `undefined` for ordinary model / shell node ids.
+ */
+export function parseBodyHelperNodeId(
+  flowNodeId: string,
+): { bodyId: string; kind: BodyHelperKind } | undefined {
+  const sep = "/$";
+  const index = flowNodeId.lastIndexOf(sep);
+  if (index < 0) return undefined;
+  const bodyId = flowNodeId.slice(0, index);
+  const kind = flowNodeId.slice(index + sep.length);
+  if (!BODY_HELPER_KINDS.includes(kind as BodyHelperKind)) return undefined;
+  if (bodyId.length === 0) return undefined;
+  return { bodyId, kind: kind as BodyHelperKind };
+}
+
+/**
+ * Map a React Flow node id back to the harness model node id. Body-helper
+ * nodes (`loop/$variables`, `$harness/$exec`, …) resolve to their body.
+ */
+export function modelNodeIdFromFlowNodeId(flowNodeId: string): string {
+  return parseBodyHelperNodeId(flowNodeId)?.bodyId ?? flowNodeId;
 }
 
 /**
@@ -104,17 +137,71 @@ function wrapChildContentWithHelperStrips(
   childContent: Size,
   topStripHeight: number = FLOW_LAYOUT.bodyTopStripHeight,
   bottomStripHeight: number = FLOW_LAYOUT.bodyBottomStripHeight,
+  topStripMinWidth: number = FLOW_LAYOUT.helperNodeWidth,
 ): Size {
   const stripActive = topStripHeight > 0 || bottomStripHeight > 0;
   return {
-    width: Math.max(
-      childContent.width,
-      stripActive ? FLOW_LAYOUT.helperNodeWidth : 0,
-    ),
+    width: Math.max(childContent.width, stripActive ? topStripMinWidth : 0),
     height:
       childContent.height +
       bodyHelperStripsHeight(topStripHeight, bottomStripHeight),
   };
+}
+
+/** Present a container/harness input as a Variables output (outer → inner). */
+function passThroughVariablesPort(port: Port): Port {
+  return {
+    id: port.id,
+    name: port.name,
+    direction: "out",
+    schema: port.schema,
+  };
+}
+
+/**
+ * Output ports the Variables helper surfaces inside a container body.
+ * Present only when there is at least one readable inner value:
+ * `$currentItem` (iterating containers), then pass-through inputs in
+ * port-declaration order (inputs other than the iterable feedstock).
+ */
+export function variablesPortsForContainer(
+  node: Extract<HarnessNode, { kind: "container" }>,
+): Port[] {
+  const ports: Port[] = [];
+  const currentItem = tryGetCurrentItemPort(node);
+  if (currentItem !== undefined) {
+    ports.push(currentItem);
+  }
+  for (const port of node.ports) {
+    if (port.direction !== "in") continue;
+    // Iterable feedstock drives `$currentItem`; it is not a pass-through.
+    if (port.id === node.iterablePortId) continue;
+    ports.push(passThroughVariablesPort(port));
+  }
+  return ports;
+}
+
+/** Outer chrome ports — body-internal sources (e.g. `$currentItem`) omitted. */
+function outerContainerPorts(ports: readonly Port[]): Port[] {
+  return ports.filter((port) => port.id !== CURRENT_ITEM_PORT_ID);
+}
+
+/** Size of a Variables helper (wide enough for `$currentItem · Type` labels). */
+function variablesHelperSize(): Size {
+  return {
+    width: FLOW_LAYOUT.leafWidth,
+    height: FLOW_LAYOUT.helperNodeHeight,
+  };
+}
+
+/** Min width of the top strip given whether a Variables helper is present. */
+function topStripMinWidth(hasVariables: boolean): number {
+  if (!hasVariables) return FLOW_LAYOUT.helperNodeWidth;
+  return (
+    FLOW_LAYOUT.helperNodeWidth +
+    FLOW_LAYOUT.childGap +
+    variablesHelperSize().width
+  );
 }
 
 /** Append / fan-out index — enough for edges and leaf/container mapping. */
@@ -286,9 +373,15 @@ function measureBodyContent(
   childSizes: Size[],
   axis: "vertical" | "horizontal",
   headerHeight: number,
+  stripMinWidth: number = FLOW_LAYOUT.helperNodeWidth,
 ): Size {
   return wrapWithHeaderChrome(
-    wrapChildContentWithHelperStrips(aggregateChildContent(childSizes, axis)),
+    wrapChildContentWithHelperStrips(
+      aggregateChildContent(childSizes, axis),
+      FLOW_LAYOUT.bodyTopStripHeight,
+      FLOW_LAYOUT.bodyBottomStripHeight,
+      stripMinWidth,
+    ),
     headerHeight,
   );
 }
@@ -317,12 +410,14 @@ function measureTree(
   const childSizes = kids.map((child) =>
     measureTree(harness, child, sizes, index),
   );
+  const hasVariables = variablesPortsForContainer(node).length > 0;
   const size = measureBodyContent(
     childSizes,
     "vertical",
     containerChromeHeaderHeight({
       hasAdvisoryCues: cuesFor(node.id, index).length > 0,
     }),
+    topStripMinWidth(hasVariables),
   );
   sizes.set(node.id, size);
   return size;
@@ -414,7 +509,7 @@ function toContainerFlowNode(
     data: {
       title: node.title,
       catalogType: node.type,
-      ports: node.ports,
+      ports: outerContainerPorts(node.ports),
       execOutBranches: [...outerExecOutBranches],
       iterablePortId: node.iterablePortId,
       sourceKind: node.source.kind,
@@ -425,6 +520,26 @@ function toContainerFlowNode(
     },
     style: { width: size.width, height: size.height },
   };
+}
+
+function toVariablesHelperFlowNode(
+  bodyId: string,
+  headerHeight: number,
+  ports: readonly Port[],
+): HelperFlowNode {
+  const origin = bodyTopStripOrigin(headerHeight);
+  const size = variablesHelperSize();
+  return toHelperFlowNode({
+    bodyId,
+    kind: "variables",
+    title: "Variables",
+    ports,
+    position: {
+      x: origin.x + FLOW_LAYOUT.helperNodeWidth + FLOW_LAYOUT.childGap,
+      y: origin.y,
+    },
+    size,
+  });
 }
 
 function toHarnessBoundaryFlowNode(
@@ -469,6 +584,7 @@ function positionSubtree(
     hasAdvisoryCues: cuesFor(node.id, index).length > 0,
   });
   const partition = partitionContainerExecOuts(harness, node.id);
+  const variablesPorts = variablesPortsForContainer(node);
   out.push(
     toContainerFlowNode(
       harness,
@@ -483,6 +599,9 @@ function positionSubtree(
   out.push(
     toExecHelperFlowNode(node.id, headerHeight, partition.bodyEntryBranches),
   );
+  if (variablesPorts.length > 0) {
+    out.push(toVariablesHelperFlowNode(node.id, headerHeight, variablesPorts));
+  }
   let y = bodyChildrenOriginY(headerHeight);
   for (const child of kids) {
     const childSize = sizes.get(child.id);
@@ -573,9 +692,24 @@ export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
   return out;
 }
 
+/** Port ids each container surfaces on its Variables helper (empty if none). */
+function variablesPortIdsByContainer(
+  harness: Harness,
+): Map<NodeId, ReadonlySet<string>> {
+  const byContainer = new Map<NodeId, ReadonlySet<string>>();
+  for (const node of harness.nodes) {
+    if (node.kind !== "container") continue;
+    const ports = variablesPortsForContainer(node);
+    if (ports.length === 0) continue;
+    byContainer.set(node.id, new Set(ports.map((port) => port.id)));
+  }
+  return byContainer;
+}
+
 /** React Flow edges for harness data wires, exec control, and fan-out append. */
 export function harnessToFlowEdges(harness: Harness): HarnessFlowEdge[] {
   const index = buildAppendIndex(harness);
+  const variablesPortsByContainer = variablesPortIdsByContainer(harness);
 
   const dataEdges: HarnessFlowEdge[] = harness.edges
     .filter((edge) => edge.kind === "data")
@@ -584,9 +718,16 @@ export function harnessToFlowEdges(harness: Harness): HarnessFlowEdge[] {
       const stroke = fromPort
         ? schemaAccent(fromPort.schema)
         : "var(--muted-foreground)";
+      // Body-internal readable sources → Variables helper when that port is
+      // surfaced there (`$currentItem` / pass-through inputs).
+      const source = variablesPortsByContainer
+        .get(edge.from.node)
+        ?.has(edge.from.port)
+        ? bodyHelperNodeId(edge.from.node, "variables")
+        : edge.from.node;
       return {
         id: dataEdgeId(edge.from, edge.to),
-        source: edge.from.node,
+        source,
         sourceHandle: edge.from.port,
         target: edge.to.node,
         targetHandle: edge.to.port,

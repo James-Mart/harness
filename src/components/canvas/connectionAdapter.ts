@@ -1,4 +1,7 @@
+import { modelNodeIdFromFlowNodeId } from "@/components/canvas/harnessToFlow";
 import type { PortRef } from "@/model/types";
+
+export { modelNodeIdFromFlowNodeId } from "@/components/canvas/harnessToFlow";
 
 /** Minimal RF connection shape needed to resolve harness port refs. */
 export type FlowConnectionLike = {
@@ -20,7 +23,7 @@ export function connectionEndpoints(
     return null;
   }
   return {
-    from: { node: source, port: sourceHandle },
-    to: { node: target, port: targetHandle },
+    from: { node: modelNodeIdFromFlowNodeId(source), port: sourceHandle },
+    to: { node: modelNodeIdFromFlowNodeId(target), port: targetHandle },
   };
 }

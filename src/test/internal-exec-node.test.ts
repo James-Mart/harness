@@ -16,6 +16,7 @@ import {
   type Harness,
   type NodeId,
 } from "@/model";
+import { containerIds } from "@/test/harnessTestUtils";
 
 function childIds(harness: Harness, parentId: NodeId): Set<NodeId> {
   return new Set(
@@ -23,12 +24,6 @@ function childIds(harness: Harness, parentId: NodeId): Set<NodeId> {
       .filter((node) => node.parentId === parentId)
       .map((node) => node.id),
   );
-}
-
-function containerIds(harness: Harness): NodeId[] {
-  return harness.nodes
-    .filter((node) => node.kind === "container")
-    .map((node) => node.id);
 }
 
 describe("internal Exec node", () => {
