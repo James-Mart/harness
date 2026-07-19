@@ -17,8 +17,9 @@ import { reparentNode, setNodePosition, type Harness } from "@/model";
 
 /**
  * Ephemeral React Flow positions during a node drag, committed to harness
- * containment + top-level placement on drag-stop. Selection stamping is owned
- * by `useCanvasSelection`.
+ * containment + top-level placement on drag-stop. Idle `onNodesChange` is a
+ * no-op here (including `select`); `useCanvasSelection` composes this delegate
+ * and folds `select` changes into controlled stamps itself.
  */
 export function useContainmentDragDraft(
   flowNodes: HarnessFlowNode[],
