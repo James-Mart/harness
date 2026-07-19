@@ -2,14 +2,19 @@ import { MarkerType } from "@xyflow/react";
 
 import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import type {
+  BodyHelperKind,
   ContainerFlowNode,
   HarnessBoundaryFlowNode,
   HarnessFlowEdge,
   HarnessFlowNode,
+  HelperFlowNode,
   LeafFlowNode,
 } from "@/components/canvas/flowTypes";
 import {
   FLOW_LAYOUT,
+  bodyChildrenOriginY,
+  bodyHelperStripsHeight,
+  bodyTopStripOrigin,
   containerChromeHeaderHeight,
   leafHeightForPortCount,
 } from "@/components/canvas/layoutTokens";
@@ -20,9 +25,11 @@ import {
 import { toAppendFlowEdge } from "@/components/canvas/workpoolVisuals";
 import {
   EXEC_IN_HANDLE,
+  distinctExecBranches,
   execEdgeId,
   execOutBranchesForNode,
   execOutHandleId,
+  type ExecEdge,
 } from "@/model/exec";
 import { effectiveConcurrency, isGateEnabled } from "@/model/readySet";
 import type {
@@ -38,7 +45,77 @@ import { wiringAdvisoryCues } from "@/model/validationCues";
 import { dataEdgeId, findPort } from "@/model/wiring";
 import { workPoolAdvisoryCues } from "@/model/workpoolGraph";
 
+export type {
+  BodyHelperKind,
+  HelperFlowData,
+  HelperFlowNode,
+} from "@/components/canvas/flowTypes";
+export {
+  bodyBottomStripOrigin,
+  bodyTopStripOrigin,
+} from "@/components/canvas/layoutTokens";
+
 type Size = { width: number; height: number };
+
+/** Stable React Flow id for a synthetic body-helper node. */
+export function bodyHelperNodeId(bodyId: string, kind: BodyHelperKind): string {
+  return `${bodyId}/$${kind}`;
+}
+
+/**
+ * Synthetic, non-interactive helper node for a body strip. Not draggable,
+ * deletable, or selectable (and never reparented — always `parentId = bodyId`).
+ */
+export function toHelperFlowNode(args: {
+  bodyId: string;
+  kind: BodyHelperKind;
+  title: string;
+  ports?: readonly Port[];
+  execOutBranches?: readonly (string | undefined)[];
+  position: NodePosition;
+  size?: Size;
+}): HelperFlowNode {
+  const size = args.size ?? {
+    width: FLOW_LAYOUT.helperNodeWidth,
+    height: FLOW_LAYOUT.helperNodeHeight,
+  };
+  return {
+    id: bodyHelperNodeId(args.bodyId, args.kind),
+    type: "helper",
+    position: args.position,
+    parentId: args.bodyId,
+    draggable: false,
+    deletable: false,
+    selectable: false,
+    data: {
+      kind: args.kind,
+      title: args.title,
+      ports: args.ports ?? [],
+      ...(args.execOutBranches !== undefined
+        ? { execOutBranches: [...args.execOutBranches] }
+        : {}),
+    },
+    style: { width: size.width, height: size.height },
+  };
+}
+
+/** Grow child-stack content by reserved top/bottom helper strips. */
+function wrapChildContentWithHelperStrips(
+  childContent: Size,
+  topStripHeight: number = FLOW_LAYOUT.bodyTopStripHeight,
+  bottomStripHeight: number = FLOW_LAYOUT.bodyBottomStripHeight,
+): Size {
+  const stripActive = topStripHeight > 0 || bottomStripHeight > 0;
+  return {
+    width: Math.max(
+      childContent.width,
+      stripActive ? FLOW_LAYOUT.helperNodeWidth : 0,
+    ),
+    height:
+      childContent.height +
+      bodyHelperStripsHeight(topStripHeight, bottomStripHeight),
+  };
+}
 
 /** Append / fan-out index — enough for edges and leaf/container mapping. */
 type AppendIndex = {
@@ -83,15 +160,74 @@ function buildFlowNodeIndex(harness: Harness): FlowNodeIndex {
   };
 }
 
-function cuesFor(
-  nodeId: NodeId,
-  index: FlowNodeIndex,
-): readonly AdvisoryCue[] {
+function cuesFor(nodeId: NodeId, index: FlowNodeIndex): readonly AdvisoryCue[] {
   return index.advisoryCuesByNode.get(nodeId) ?? [];
 }
 
 function childrenOf(nodes: HarnessNode[], parentId: string): HarnessNode[] {
   return nodes.filter((node) => node.parentId === parentId);
+}
+
+type ContainerExecOutPartition = {
+  bodyEntry: ExecEdge[];
+  outer: ExecEdge[];
+  bodyEntryBranches: (string | undefined)[];
+  outerBranches: (string | undefined)[];
+};
+
+/**
+ * Split a container's outgoing exec edges into body-entry (target is a direct
+ * child) vs outer/sibling. Branch lists drive the Exec helper pins and the
+ * container chrome outs from one classification.
+ */
+export function partitionContainerExecOuts(
+  harness: Harness,
+  containerId: NodeId,
+): ContainerExecOutPartition {
+  const childIds = new Set(
+    childrenOf(harness.nodes, containerId).map((child) => child.id),
+  );
+  const outs = harness.edges.filter(
+    (edge): edge is ExecEdge =>
+      edge.kind === "exec" && edge.from === containerId,
+  );
+  const bodyEntry = outs.filter((edge) => childIds.has(edge.to));
+  const outer = outs.filter((edge) => !childIds.has(edge.to));
+  return {
+    bodyEntry,
+    outer,
+    bodyEntryBranches: distinctExecBranches(bodyEntry),
+    outerBranches: distinctExecBranches(outer),
+  };
+}
+
+/** Outer exec-out slots for container chrome (sibling / post-body only). */
+function outerExecOutBranchesFromPartition(
+  harness: Harness,
+  node: HarnessNode,
+  partition: ContainerExecOutPartition,
+): (string | undefined)[] {
+  if (partition.outer.length > 0) return partition.outerBranches;
+  // All outs enter the body — no outer sibling pin.
+  if (partition.bodyEntry.length > 0) return [];
+  // Nothing wired yet — keep the default authoring pin.
+  return execOutBranchesForNode(harness, node);
+}
+
+function toExecHelperFlowNode(
+  bodyId: string,
+  headerHeight: number,
+  bodyEntryBranches: readonly (string | undefined)[],
+): HelperFlowNode {
+  return toHelperFlowNode({
+    bodyId,
+    kind: "exec",
+    title: "Exec",
+    // Always at least one unbranched out when nothing enters the body yet.
+    execOutBranches:
+      bodyEntryBranches.length > 0 ? bodyEntryBranches : [undefined],
+    position: bodyTopStripOrigin(headerHeight),
+  });
 }
 
 function leafSize(
@@ -145,6 +281,18 @@ function wrapWithHeaderChrome(content: Size, headerHeight: number): Size {
   };
 }
 
+/** Aggregate children, reserve helper strips, then wrap with header chrome. */
+function measureBodyContent(
+  childSizes: Size[],
+  axis: "vertical" | "horizontal",
+  headerHeight: number,
+): Size {
+  return wrapWithHeaderChrome(
+    wrapChildContentWithHelperStrips(aggregateChildContent(childSizes, axis)),
+    headerHeight,
+  );
+}
+
 /** Bottom-up size cache — one walk, reused by the position pass. */
 function measureTree(
   harness: Harness,
@@ -169,8 +317,9 @@ function measureTree(
   const childSizes = kids.map((child) =>
     measureTree(harness, child, sizes, index),
   );
-  const size = wrapWithHeaderChrome(
-    aggregateChildContent(childSizes, "vertical"),
+  const size = measureBodyContent(
+    childSizes,
+    "vertical",
     containerChromeHeaderHeight({
       hasAdvisoryCues: cuesFor(node.id, index).length > 0,
     }),
@@ -181,8 +330,9 @@ function measureTree(
 
 /** Size of the harness shell wrapping auto-layout top-level nodes L→R. */
 function measureHarnessShell(rootSizes: Size[]): Size {
-  return wrapWithHeaderChrome(
-    aggregateChildContent(rootSizes, "horizontal"),
+  return measureBodyContent(
+    rootSizes,
+    "horizontal",
     FLOW_LAYOUT.harnessHeaderHeight,
   );
 }
@@ -253,6 +403,7 @@ function toContainerFlowNode(
   position: NodePosition,
   size: Size,
   index: FlowNodeIndex,
+  outerExecOutBranches: readonly (string | undefined)[],
   parentId?: string,
 ): ContainerFlowNode {
   return {
@@ -264,7 +415,7 @@ function toContainerFlowNode(
       title: node.title,
       catalogType: node.type,
       ports: node.ports,
-      execOutBranches: execOutBranchesForNode(harness, node),
+      execOutBranches: [...outerExecOutBranches],
       iterablePortId: node.iterablePortId,
       sourceKind: node.source.kind,
       concurrency: effectiveConcurrency(harness, node),
@@ -313,13 +464,26 @@ function positionSubtree(
     return;
   }
 
-  out.push(toContainerFlowNode(harness, node, position, size, index, parentId));
-
   const kids = childrenOf(harness.nodes, node.id);
   const headerHeight = containerChromeHeaderHeight({
     hasAdvisoryCues: cuesFor(node.id, index).length > 0,
   });
-  let y = headerHeight + FLOW_LAYOUT.containerPadY;
+  const partition = partitionContainerExecOuts(harness, node.id);
+  out.push(
+    toContainerFlowNode(
+      harness,
+      node,
+      position,
+      size,
+      index,
+      outerExecOutBranchesFromPartition(harness, node, partition),
+      parentId,
+    ),
+  );
+  out.push(
+    toExecHelperFlowNode(node.id, headerHeight, partition.bodyEntryBranches),
+  );
+  let y = bodyChildrenOriginY(headerHeight);
   for (const child of kids) {
     const childSize = sizes.get(child.id);
     if (!childSize) {
@@ -372,13 +536,19 @@ export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
 
   const out: HarnessFlowNode[] = [
     toHarnessBoundaryFlowNode(harness, shellSize),
+    toExecHelperFlowNode(
+      HARNESS_FLOW_NODE_ID,
+      FLOW_LAYOUT.harnessHeaderHeight,
+      partitionContainerExecOuts(harness, HARNESS_FLOW_NODE_ID)
+        .bodyEntryBranches,
+    ),
   ];
 
   // Auto-layout x advances only across auto roots so placed roots cannot
   // steal slots and overlap L→R siblings.
   const autoPositionById = new Map<NodeId, NodePosition>();
   let x = FLOW_LAYOUT.containerPadX;
-  const y = FLOW_LAYOUT.harnessHeaderHeight + FLOW_LAYOUT.containerPadY;
+  const y = bodyChildrenOriginY(FLOW_LAYOUT.harnessHeaderHeight);
   for (const root of autoRoots) {
     autoPositionById.set(root.id, { x, y });
     x += sizeOf(root.id).width + FLOW_LAYOUT.topLevelGap;
@@ -426,31 +596,43 @@ export function harnessToFlowEdges(harness: Harness): HarnessFlowEdge[] {
       };
     });
 
+  const parentByNodeId = new Map(
+    harness.nodes.map((node) => [node.id, node.parentId] as const),
+  );
+
   const execEdges: HarnessFlowEdge[] = harness.edges
-    .filter((edge) => edge.kind === "exec")
-    .map((edge) => ({
-      id: execEdgeId(edge.from, edge.to, edge.branch),
-      source: edge.from,
-      sourceHandle: execOutHandleId(edge.branch),
-      target: edge.to,
-      targetHandle: EXEC_IN_HANDLE,
-      type: "smoothstep",
-      label: edge.branch,
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        width: 16,
-        height: 16,
-        color: "var(--foreground)",
-      },
-      style: {
-        stroke: "var(--foreground)",
-        strokeWidth: 1.75,
-      },
-      data: {
-        kind: "exec" as const,
-        ...(edge.branch !== undefined ? { branch: edge.branch } : {}),
-      },
-    }));
+    .filter((edge): edge is ExecEdge => edge.kind === "exec")
+    .map((edge) => {
+      // Body-entry: source from the container's Exec helper; sibling edges
+      // keep the container's outer exec-out. Child → child is unchanged.
+      const source =
+        parentByNodeId.get(edge.to) === edge.from
+          ? bodyHelperNodeId(edge.from, "exec")
+          : edge.from;
+      return {
+        id: execEdgeId(edge.from, edge.to, edge.branch),
+        source,
+        sourceHandle: execOutHandleId(edge.branch),
+        target: edge.to,
+        targetHandle: EXEC_IN_HANDLE,
+        type: "smoothstep",
+        label: edge.branch,
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 16,
+          height: 16,
+          color: "var(--foreground)",
+        },
+        style: {
+          stroke: "var(--foreground)",
+          strokeWidth: 1.75,
+        },
+        data: {
+          kind: "exec" as const,
+          ...(edge.branch !== undefined ? { branch: edge.branch } : {}),
+        },
+      };
+    });
 
   const appendEdges = index.appenders.map(toAppendFlowEdge);
 

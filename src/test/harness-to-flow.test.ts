@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  bodyHelperNodeId,
   harnessToFlowEdges,
   harnessToFlowNodes,
 } from "@/components/canvas/harnessToFlow";
 import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import {
   FLOW_LAYOUT,
+  bodyChildrenOriginY,
   containerChromeHeaderHeight,
 } from "@/components/canvas/layoutTokens";
 import { appendEdgeId } from "@/model";
@@ -31,8 +33,10 @@ describe("harnessToFlowNodes", () => {
 
     expect(nodes.map((node) => node.id)).toEqual([
       HARNESS_FLOW_NODE_ID,
+      bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "exec"),
       "source",
       "loop",
+      bodyHelperNodeId("loop", "exec"),
       "worker",
     ]);
 
@@ -64,7 +68,7 @@ describe("harnessToFlowNodes", () => {
     expect(source.data.ports.map((port) => port.id)).toEqual(["items"]);
     expect(source.position).toEqual({
       x: FLOW_LAYOUT.containerPadX,
-      y: FLOW_LAYOUT.harnessHeaderHeight + FLOW_LAYOUT.containerPadY,
+      y: bodyChildrenOriginY(FLOW_LAYOUT.harnessHeaderHeight),
     });
 
     expect(loop?.type).toBe("container");
@@ -80,7 +84,8 @@ describe("harnessToFlowNodes", () => {
       hasFanOut: false,
     });
     expect(loop.data.end).toBeUndefined();
-    expect(loop.data.execOutBranches).toEqual([undefined]);
+    // Body-entry outs live on the Exec helper; loop has no sibling outs.
+    expect(loop.data.execOutBranches).toEqual([]);
     expect(loop.data.ports.map((port) => port.id)).toEqual([
       "items",
       CURRENT_ITEM_PORT_ID,
@@ -103,7 +108,7 @@ describe("harnessToFlowNodes", () => {
     ]);
     expect(worker.position).toEqual({
       x: FLOW_LAYOUT.containerPadX,
-      y: containerChromeHeaderHeight() + FLOW_LAYOUT.containerPadY,
+      y: bodyChildrenOriginY(containerChromeHeaderHeight()),
     });
     expect(worker.style?.height).toBeGreaterThan(FLOW_LAYOUT.leafMinHeight - 1);
   });
@@ -206,6 +211,14 @@ describe("harnessToFlowEdges", () => {
     });
     expect(sequential?.markerEnd).toBeTruthy();
     expect(sequential?.label).toBeUndefined();
+
+    const bodyEntry = execEdges.find((edge) => edge.id === "exec:loop->worker");
+    expect(bodyEntry).toMatchObject({
+      source: bodyHelperNodeId("loop", "exec"),
+      sourceHandle: EXEC_OUT_HANDLE,
+      target: "worker",
+      targetHandle: EXEC_IN_HANDLE,
+    });
 
     const ok = execEdges.find(
       (edge) => edge.id === execEdgeId("gate", "onOk", "ok"),

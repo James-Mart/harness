@@ -15,7 +15,10 @@ import {
 import App from "@/App";
 import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import { harnessToFlowNodes } from "@/components/canvas/harnessToFlow";
-import { FLOW_LAYOUT } from "@/components/canvas/layoutTokens";
+import {
+  FLOW_LAYOUT,
+  bodyChildrenOriginY,
+} from "@/components/canvas/layoutTokens";
 import {
   addCatalogNode,
   createBaseSeedHarness,
@@ -113,7 +116,7 @@ describe("viewport-centre placement", () => {
       (node) => node.id === "gate-1",
     );
     expect(gate?.position.y).toBe(
-      FLOW_LAYOUT.harnessHeaderHeight + FLOW_LAYOUT.containerPadY,
+      bodyChildrenOriginY(FLOW_LAYOUT.harnessHeaderHeight),
     );
   });
 
