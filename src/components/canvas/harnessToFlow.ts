@@ -148,16 +148,37 @@ function wrapChildContentWithHelperStrips(
   };
 }
 
+/** Present a container/harness input as a Variables output (outer → inner). */
+function passThroughVariablesPort(port: Port): Port {
+  return {
+    id: port.id,
+    name: port.name,
+    direction: "out",
+    schema: port.schema,
+  };
+}
+
 /**
  * Output ports the Variables helper surfaces inside a container body.
- * Present only when there is at least one readable inner value (today:
- * `$currentItem` on iterating containers).
+ * Present only when there is at least one readable inner value:
+ * `$currentItem` (iterating containers), then pass-through inputs in
+ * port-declaration order (inputs other than the iterable feedstock).
  */
 export function variablesPortsForContainer(
   node: Extract<HarnessNode, { kind: "container" }>,
 ): Port[] {
+  const ports: Port[] = [];
   const currentItem = tryGetCurrentItemPort(node);
-  return currentItem === undefined ? [] : [currentItem];
+  if (currentItem !== undefined) {
+    ports.push(currentItem);
+  }
+  for (const port of node.ports) {
+    if (port.direction !== "in") continue;
+    // Iterable feedstock drives `$currentItem`; it is not a pass-through.
+    if (port.id === node.iterablePortId) continue;
+    ports.push(passThroughVariablesPort(port));
+  }
+  return ports;
 }
 
 /** Outer chrome ports — body-internal sources (e.g. `$currentItem`) omitted. */
@@ -671,9 +692,24 @@ export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
   return out;
 }
 
+/** Port ids each container surfaces on its Variables helper (empty if none). */
+function variablesPortIdsByContainer(
+  harness: Harness,
+): Map<NodeId, ReadonlySet<string>> {
+  const byContainer = new Map<NodeId, ReadonlySet<string>>();
+  for (const node of harness.nodes) {
+    if (node.kind !== "container") continue;
+    const ports = variablesPortsForContainer(node);
+    if (ports.length === 0) continue;
+    byContainer.set(node.id, new Set(ports.map((port) => port.id)));
+  }
+  return byContainer;
+}
+
 /** React Flow edges for harness data wires, exec control, and fan-out append. */
 export function harnessToFlowEdges(harness: Harness): HarnessFlowEdge[] {
   const index = buildAppendIndex(harness);
+  const variablesPortsByContainer = variablesPortIdsByContainer(harness);
 
   const dataEdges: HarnessFlowEdge[] = harness.edges
     .filter((edge) => edge.kind === "data")
@@ -682,15 +718,13 @@ export function harnessToFlowEdges(harness: Harness): HarnessFlowEdge[] {
       const stroke = fromPort
         ? schemaAccent(fromPort.schema)
         : "var(--muted-foreground)";
-      // Body-internal `$currentItem` → Variables helper only when that helper
-      // is emitted (same predicate as node placement).
-      const fromNode = index.byId.get(edge.from.node);
-      const source =
-        edge.from.port === CURRENT_ITEM_PORT_ID &&
-        fromNode?.kind === "container" &&
-        variablesPortsForContainer(fromNode).length > 0
-          ? bodyHelperNodeId(edge.from.node, "variables")
-          : edge.from.node;
+      // Body-internal readable sources → Variables helper when that port is
+      // surfaced there (`$currentItem` / pass-through inputs).
+      const source = variablesPortsByContainer
+        .get(edge.from.node)
+        ?.has(edge.from.port)
+        ? bodyHelperNodeId(edge.from.node, "variables")
+        : edge.from.node;
       return {
         id: dataEdgeId(edge.from, edge.to),
         source,

@@ -41,6 +41,18 @@ describe("connectionEndpoints", () => {
       from: { node: "loop", port: CURRENT_ITEM_PORT_ID },
       to: { node: "worker", port: "task" },
     });
+    // Pass-through input ids round-trip the same way as `$currentItem`.
+    expect(
+      connectionEndpoints({
+        source: bodyHelperNodeId("loop", "variables"),
+        sourceHandle: "context",
+        target: "gate",
+        targetHandle: "prompt",
+      }),
+    ).toEqual({
+      from: { node: "loop", port: "context" },
+      to: { node: "gate", port: "prompt" },
+    });
   });
 
   it("returns null when any endpoint is missing", () => {
