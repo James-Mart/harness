@@ -7,7 +7,6 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import { NodeInspector } from "@/components/inspector/NodeInspector";
 import { EditorLayout } from "@/components/layout/EditorLayout";
 import { createBaseSeedHarness, createWorkPoolSeedHarness } from "@/model";
@@ -62,25 +61,6 @@ describe("NodeInspector", () => {
     );
     expect(screen.getByTestId("inspector-field-end")).toBeChecked();
   });
-
-  it("renders harness boundary signature without delete", () => {
-    const harness = createBaseSeedHarness();
-    render(
-      <NodeInspector
-        target={{
-          kind: "harness",
-          title: harness.title,
-          ports: harness.boundary,
-        }}
-      />,
-    );
-
-    expect(screen.getByTestId("inspector-title")).toHaveTextContent(
-      "Base seed harness",
-    );
-    expect(screen.getByTestId("inspector-port-tasks")).toBeInTheDocument();
-    expect(screen.queryByTestId("inspector-delete")).toBeNull();
-  });
 });
 
 describe("select + delete inspector wiring", () => {
@@ -94,16 +74,6 @@ describe("select + delete inspector wiring", () => {
     expect(
       within(inspector).getByTestId("inspector-port-task"),
     ).toBeInTheDocument();
-  });
-
-  it("shows harness signature when the shell is selected", () => {
-    render(<EditorLayout initialSelectedNodeIds={[HARNESS_FLOW_NODE_ID]} />);
-
-    const inspector = screen.getByTestId("node-inspector");
-    expect(within(inspector).getByTestId("inspector-title")).toHaveTextContent(
-      "Base seed harness",
-    );
-    expect(within(inspector).queryByTestId("inspector-delete")).toBeNull();
   });
 
   it("deletes the selected node from the inspector button", () => {

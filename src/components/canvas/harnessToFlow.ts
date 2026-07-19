@@ -4,7 +4,6 @@ import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import type {
   BodyHelperKind,
   ContainerFlowNode,
-  HarnessBoundaryFlowNode,
   HarnessFlowEdge,
   HarnessFlowNode,
   HelperFlowNode,
@@ -98,7 +97,8 @@ export function modelNodeIdFromFlowNodeId(flowNodeId: string): string {
 
 /**
  * Synthetic, non-interactive helper node for a body strip. Not draggable,
- * deletable, or selectable (and never reparented — always `parentId = bodyId`).
+ * deletable, or selectable. Nested helpers keep `parentId = bodyId`; canvas-
+ * level helpers (`float`) have no React Flow parent.
  */
 export function toHelperFlowNode(args: {
   bodyId: string;
@@ -108,6 +108,8 @@ export function toHelperFlowNode(args: {
   execOutBranches?: readonly (string | undefined)[];
   position: NodePosition;
   size?: Size;
+  /** When true, omit `parentId` so the helper floats on the open canvas. */
+  float?: boolean;
 }): HelperFlowNode {
   const size = args.size ?? {
     width: FLOW_LAYOUT.helperNodeWidth,
@@ -117,7 +119,7 @@ export function toHelperFlowNode(args: {
     id: bodyHelperNodeId(args.bodyId, args.kind),
     type: "helper",
     position: args.position,
-    parentId: args.bodyId,
+    ...(args.float ? {} : { parentId: args.bodyId }),
     draggable: false,
     deletable: false,
     selectable: false,
@@ -203,6 +205,16 @@ export function outputPortsForContainer(
   node: Extract<HarnessNode, { kind: "container" }>,
 ): Port[] {
   return outputPortsForPorts(node.ports);
+}
+
+/**
+ * Output ports the Variables helper surfaces for harness boundary inputs.
+ * Boundary `in` ports become Variables `out` sources (declaration order).
+ */
+export function variablesPortsForHarness(harness: Harness): Port[] {
+  return harness.boundary
+    .filter((port) => port.direction === "in")
+    .map((port) => portWithDirection(port, "out"));
 }
 
 /** Payload outs the harness boundary surfaces on the canvas Output helper. */
@@ -345,19 +357,23 @@ function outerExecOutBranchesFromPartition(
   return execOutBranchesForNode(harness, node);
 }
 
-function toExecHelperFlowNode(
-  bodyId: string,
-  headerHeight: number,
-  bodyEntryBranches: readonly (string | undefined)[],
-): HelperFlowNode {
+function toExecHelperFlowNode(args: {
+  bodyId: string;
+  headerHeight: number;
+  bodyEntryBranches: readonly (string | undefined)[];
+  float?: boolean;
+}): HelperFlowNode {
   return toHelperFlowNode({
-    bodyId,
+    bodyId: args.bodyId,
     kind: "exec",
     title: "Exec",
     // Always at least one unbranched out when nothing enters the body yet.
     execOutBranches:
-      bodyEntryBranches.length > 0 ? bodyEntryBranches : [undefined],
-    position: bodyTopStripOrigin(headerHeight),
+      args.bodyEntryBranches.length > 0
+        ? args.bodyEntryBranches
+        : [undefined],
+    position: bodyTopStripOrigin(args.headerHeight),
+    float: args.float,
   });
 }
 
@@ -470,47 +486,6 @@ function measureTree(
   return size;
 }
 
-/** Size of the harness shell wrapping auto-layout top-level nodes L→R. */
-function measureHarnessShell(
-  rootSizes: Size[],
-  hasOutput: boolean = false,
-): Size {
-  return measureBodyContent(
-    rootSizes,
-    "horizontal",
-    FLOW_LAYOUT.harnessHeaderHeight,
-    bodyStripMinWidth(false, hasOutput),
-    bottomStripHeight(hasOutput),
-  );
-}
-
-/**
- * Grow the shell so a manually-placed root stays inside the boundary frame,
- * including room for an optional bottom Output strip beneath it.
- */
-function expandShellForPlacement(
-  shell: Size,
-  position: NodePosition,
-  size: Size,
-  bottomStrip: number = FLOW_LAYOUT.bodyBottomStripHeight,
-): Size {
-  const bottomReserve =
-    bottomStrip > 0 ? FLOW_LAYOUT.childGap + bottomStrip : 0;
-  return {
-    width: Math.max(
-      shell.width,
-      position.x + size.width + FLOW_LAYOUT.containerPadX,
-    ),
-    height: Math.max(
-      shell.height,
-      position.y +
-        size.height +
-        bottomReserve +
-        FLOW_LAYOUT.containerPadY,
-    ),
-  };
-}
-
 function toLeafFlowNode(
   harness: Harness,
   node: Extract<HarnessNode, { kind: "leaf" }>,
@@ -583,63 +558,96 @@ function toContainerFlowNode(
   };
 }
 
-function toVariablesHelperFlowNode(
-  bodyId: string,
-  headerHeight: number,
-  ports: readonly Port[],
-): HelperFlowNode {
-  const origin = bodyTopStripOrigin(headerHeight);
+function toVariablesHelperFlowNode(args: {
+  bodyId: string;
+  headerHeight: number;
+  ports: readonly Port[];
+  float?: boolean;
+}): HelperFlowNode {
+  const origin = bodyTopStripOrigin(args.headerHeight);
   const size = dataHelperSize();
   return toHelperFlowNode({
-    bodyId,
+    bodyId: args.bodyId,
     kind: "variables",
     title: "Variables",
-    ports,
+    ports: args.ports,
     position: {
       x: origin.x + FLOW_LAYOUT.helperNodeWidth + FLOW_LAYOUT.childGap,
       y: origin.y,
     },
     size,
+    float: args.float,
   });
 }
 
-function toOutputHelperFlowNode(
-  bodyId: string,
-  headerHeight: number,
-  childContentHeight: number,
-  ports: readonly Port[],
-): HelperFlowNode {
+function toOutputHelperFlowNode(args: {
+  bodyId: string;
+  headerHeight: number;
+  childContentHeight: number;
+  ports: readonly Port[];
+  float?: boolean;
+}): HelperFlowNode {
   return toHelperFlowNode({
-    bodyId,
+    bodyId: args.bodyId,
     kind: "output",
     title: "Output",
-    ports,
+    ports: args.ports,
     position: bodyBottomStripOrigin(
-      headerHeight,
-      childContentHeight,
+      args.headerHeight,
+      args.childContentHeight,
       FLOW_LAYOUT.bodyTopStripHeight,
       FLOW_LAYOUT.helperNodeHeight,
     ),
     size: dataHelperSize(),
+    float: args.float,
   });
 }
 
-function toHarnessBoundaryFlowNode(
-  harness: Harness,
-  size: Size,
-): HarnessBoundaryFlowNode {
-  return {
-    id: HARNESS_FLOW_NODE_ID,
-    type: "harness",
-    position: { x: 0, y: 0 },
-    draggable: false,
-    deletable: false,
-    data: {
-      title: harness.title,
-      ports: harness.boundary,
-    },
-    style: { width: size.width, height: size.height },
-  };
+/**
+ * Emit Exec + optional Variables + optional Output for a body (container or
+ * open canvas). Canvas call sites pass `float: true`.
+ */
+function emitBodyStripHelpers(
+  out: HarnessFlowNode[],
+  args: {
+    bodyId: string;
+    headerHeight: number;
+    bodyEntryBranches: readonly (string | undefined)[];
+    variablesPorts: readonly Port[];
+    outputPorts: readonly Port[];
+    childContentHeight: number;
+    float?: boolean;
+  },
+): void {
+  out.push(
+    toExecHelperFlowNode({
+      bodyId: args.bodyId,
+      headerHeight: args.headerHeight,
+      bodyEntryBranches: args.bodyEntryBranches,
+      float: args.float,
+    }),
+  );
+  if (args.variablesPorts.length > 0) {
+    out.push(
+      toVariablesHelperFlowNode({
+        bodyId: args.bodyId,
+        headerHeight: args.headerHeight,
+        ports: args.variablesPorts,
+        float: args.float,
+      }),
+    );
+  }
+  if (args.outputPorts.length > 0) {
+    out.push(
+      toOutputHelperFlowNode({
+        bodyId: args.bodyId,
+        headerHeight: args.headerHeight,
+        childContentHeight: args.childContentHeight,
+        ports: args.outputPorts,
+        float: args.float,
+      }),
+    );
+  }
 }
 
 function positionSubtree(
@@ -668,6 +676,13 @@ function positionSubtree(
   const partition = partitionContainerExecOuts(harness, node.id);
   const variablesPorts = variablesPortsForContainer(node);
   const outputPorts = outputPortsForContainer(node);
+  const childSizes = kids.map((child) => {
+    const childSize = sizes.get(child.id);
+    if (!childSize) {
+      throw new Error(`Missing measured size for child ${child.id}`);
+    }
+    return childSize;
+  });
   out.push(
     toContainerFlowNode(
       harness,
@@ -679,18 +694,13 @@ function positionSubtree(
       parentId,
     ),
   );
-  out.push(
-    toExecHelperFlowNode(node.id, headerHeight, partition.bodyEntryBranches),
-  );
-  if (variablesPorts.length > 0) {
-    out.push(toVariablesHelperFlowNode(node.id, headerHeight, variablesPorts));
-  }
-  const childSizes = kids.map((child) => {
-    const childSize = sizes.get(child.id);
-    if (!childSize) {
-      throw new Error(`Missing measured size for child ${child.id}`);
-    }
-    return childSize;
+  emitBodyStripHelpers(out, {
+    bodyId: node.id,
+    headerHeight,
+    bodyEntryBranches: partition.bodyEntryBranches,
+    variablesPorts,
+    outputPorts,
+    childContentHeight: aggregateChildContent(childSizes, "vertical").height,
   });
   let y = bodyChildrenOriginY(headerHeight);
   for (let i = 0; i < kids.length; i++) {
@@ -707,22 +717,12 @@ function positionSubtree(
     );
     y += childSize.height + FLOW_LAYOUT.childGap;
   }
-  if (outputPorts.length > 0) {
-    out.push(
-      toOutputHelperFlowNode(
-        node.id,
-        headerHeight,
-        aggregateChildContent(childSizes, "vertical").height,
-        outputPorts,
-      ),
-    );
-  }
 }
 
 /**
  * Convert a harness graph into React Flow nodes with parent/child
- * containment. The harness itself is the outer boundary node; top-level
- * graph nodes sit in its body left-to-right.
+ * containment. Top-level graph nodes and canvas helpers float on the open
+ * canvas (no harness boundary frame); nested children stay under containers.
  */
 export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
   const index = buildFlowNodeIndex(harness);
@@ -739,11 +739,12 @@ export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
   };
 
   // Manually-placed roots use their persisted position; the rest flow L→R.
-  const placedRoots = roots.filter((root) => root.position !== undefined);
   const autoRoots = roots.filter((root) => root.position === undefined);
+  const harnessVariablesPorts = variablesPortsForHarness(harness);
   const harnessOutputPorts = outputPortsForHarness(harness);
-  const hasHarnessOutput = harnessOutputPorts.length > 0;
-  const childrenOriginY = bodyChildrenOriginY(FLOW_LAYOUT.harnessHeaderHeight);
+  // No harness chrome — canvas helpers / roots share the open canvas origin.
+  const canvasHeaderHeight = 0;
+  const childrenOriginY = bodyChildrenOriginY(canvasHeaderHeight);
 
   // Auto-layout x advances only across auto roots so placed roots cannot
   // steal slots and overlap L→R siblings.
@@ -777,61 +778,24 @@ export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
     );
   }
 
-  let shellSize = measureHarnessShell(
-    autoRoots.map((root) => sizeOf(root.id)),
-    hasHarnessOutput,
-  );
-  const harnessBottomStrip = bottomStripHeight(hasHarnessOutput);
-  for (const root of placedRoots) {
-    shellSize = expandShellForPlacement(
-      shellSize,
-      root.position!,
-      sizeOf(root.id),
-      harnessBottomStrip,
-    );
-  }
-  // Keep the shell tall enough for the explicit child stack + Output strip.
-  if (hasHarnessOutput) {
-    const neededHeight =
-      FLOW_LAYOUT.harnessHeaderHeight +
-      FLOW_LAYOUT.containerPadY * 2 +
-      bodyHelperStripsHeight(
-        FLOW_LAYOUT.bodyTopStripHeight,
-        FLOW_LAYOUT.helperNodeHeight,
-      ) +
-      childStackHeight;
-    shellSize = {
-      ...shellSize,
-      height: Math.max(shellSize.height, neededHeight),
-    };
-  }
-
-  const out: HarnessFlowNode[] = [
-    toHarnessBoundaryFlowNode(harness, shellSize),
-    toExecHelperFlowNode(
-      HARNESS_FLOW_NODE_ID,
-      FLOW_LAYOUT.harnessHeaderHeight,
-      partitionContainerExecOuts(harness, HARNESS_FLOW_NODE_ID)
-        .bodyEntryBranches,
-    ),
-  ];
-  if (hasHarnessOutput) {
-    out.push(
-      toOutputHelperFlowNode(
-        HARNESS_FLOW_NODE_ID,
-        FLOW_LAYOUT.harnessHeaderHeight,
-        childStackHeight,
-        harnessOutputPorts,
-      ),
-    );
-  }
+  const out: HarnessFlowNode[] = [];
+  emitBodyStripHelpers(out, {
+    bodyId: HARNESS_FLOW_NODE_ID,
+    headerHeight: canvasHeaderHeight,
+    bodyEntryBranches: partitionContainerExecOuts(harness, HARNESS_FLOW_NODE_ID)
+      .bodyEntryBranches,
+    variablesPorts: harnessVariablesPorts,
+    outputPorts: harnessOutputPorts,
+    childContentHeight: childStackHeight,
+    float: true,
+  });
 
   for (const root of roots) {
     positionSubtree(
       harness,
       root,
       positionOf(root),
-      HARNESS_FLOW_NODE_ID,
+      undefined,
       sizes,
       index,
       out,
@@ -858,6 +822,13 @@ function helperPortIdsByBody(harness: Harness): {
     if (outputPorts.length > 0) {
       output.set(node.id, new Set(outputPorts.map((port) => port.id)));
     }
+  }
+  const harnessVariables = variablesPortsForHarness(harness);
+  if (harnessVariables.length > 0) {
+    variables.set(
+      HARNESS_FLOW_NODE_ID,
+      new Set(harnessVariables.map((port) => port.id)),
+    );
   }
   const harnessPorts = outputPortsForHarness(harness);
   if (harnessPorts.length > 0) {

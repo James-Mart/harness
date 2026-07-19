@@ -207,9 +207,9 @@ describe("Output node", () => {
       (node) =>
         node.id === bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "output"),
     );
+    expect(output?.parentId).toBeUndefined();
     expect(output).toMatchObject({
       type: "helper",
-      parentId: HARNESS_FLOW_NODE_ID,
       draggable: false,
       deletable: false,
       selectable: false,
@@ -221,9 +221,7 @@ describe("Output node", () => {
     });
 
     // Below the auto-laid-out root row.
-    expect(output!.position.y).toBeGreaterThan(
-      bodyChildrenOriginY(FLOW_LAYOUT.harnessHeaderHeight),
-    );
+    expect(output!.position.y).toBeGreaterThan(bodyChildrenOriginY(0));
   });
 
   it("re-routes a root→harness-boundary out edge onto the canvas Output", () => {

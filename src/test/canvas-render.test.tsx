@@ -20,24 +20,32 @@ describe("canvas render", () => {
     render(<EditorLayout initialHarness={createBaseSeedHarness()} />);
 
     const canvas = screen.getByTestId("editor-canvas");
-    const harness = within(canvas).getByTestId(
-      `flow-node-${HARNESS_FLOW_NODE_ID}`,
-    );
     const source = within(canvas).getByTestId("flow-node-source");
     const loop = within(canvas).getByTestId("flow-node-loop");
     const worker = within(canvas).getByTestId("flow-node-worker");
-
-    expect(harness).toHaveAttribute("data-kind", "harness");
-    expect(within(harness).getByText("Base seed harness")).toBeInTheDocument();
-    expect(within(harness).getByTestId("port-tasks")).toHaveAttribute(
-      "data-port-direction",
-      "in",
+    const canvasVariables = within(canvas).getByTestId(
+      `flow-node-${bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "variables")}`,
     );
-    expect(within(harness).getByTestId("port-summary")).toHaveAttribute(
+    const canvasOutput = within(canvas).getByTestId(
+      `flow-node-${bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "output")}`,
+    );
+
+    // No harness boundary frame — signature lives on canvas helpers.
+    expect(
+      canvas.querySelector(
+        `.react-flow__node[data-id="${HARNESS_FLOW_NODE_ID}"]`,
+      ),
+    ).toBeNull();
+    expect(canvasVariables).toHaveAttribute("data-helper-kind", "variables");
+    expect(within(canvasVariables).getByTestId("port-tasks")).toHaveAttribute(
       "data-port-direction",
       "out",
     );
-    expect(within(harness).getByTestId("harness-body")).toBeInTheDocument();
+    expect(canvasOutput).toHaveAttribute("data-helper-kind", "output");
+    expect(within(canvasOutput).getByTestId("port-summary")).toHaveAttribute(
+      "data-port-direction",
+      "in",
+    );
 
     expect(source).toHaveAttribute("data-kind", "leaf");
     expect(within(source).getByText("List source")).toBeInTheDocument();
@@ -89,11 +97,6 @@ describe("canvas render", () => {
     ).toBeTruthy();
     expect(
       canvas.querySelector('.react-flow__node[data-id="loop"]'),
-    ).toBeTruthy();
-    expect(
-      canvas.querySelector(
-        `.react-flow__node[data-id="${HARNESS_FLOW_NODE_ID}"]`,
-      ),
     ).toBeTruthy();
   });
 

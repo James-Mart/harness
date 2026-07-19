@@ -7,6 +7,7 @@ import {
   harnessToFlowEdges,
   harnessToFlowNodes,
   variablesPortsForContainer,
+  variablesPortsForHarness,
 } from "@/components/canvas/harnessToFlow";
 import {
   CURRENT_ITEM_PORT_ID,
@@ -33,13 +34,22 @@ describe("Variables node ($currentItem)", () => {
       const edges = harnessToFlowEdges(harness);
       assertLayoutInvariants(nodes);
 
-      // Canvas-level body is non-iterating with no readable values yet.
-      expect(
-        nodes.find(
-          (node) =>
-            node.id === bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "variables"),
-        ),
-      ).toBeUndefined();
+      // Canvas-level Variables surfaces harness boundary inputs.
+      const canvasVariablesPorts = variablesPortsForHarness(harness);
+      expect(canvasVariablesPorts.length).toBeGreaterThan(0);
+      const canvasVariables = nodes.find(
+        (node) =>
+          node.id === bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "variables"),
+      );
+      expect(canvasVariables?.parentId).toBeUndefined();
+      expect(canvasVariables).toMatchObject({
+        type: "helper",
+        data: {
+          kind: "variables",
+          title: "Variables",
+          ports: canvasVariablesPorts,
+        },
+      });
 
       for (const containerId of containerIds(harness)) {
         const model = harness.nodes.find((node) => node.id === containerId);

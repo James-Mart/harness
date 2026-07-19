@@ -38,12 +38,6 @@ export type ContainerFlowData = {
   advisoryCues: readonly AdvisoryCue[];
 };
 
-/** Outer harness shell — boundary signature ports only. */
-export type HarnessBoundaryFlowData = {
-  title: string;
-  ports: Port[];
-};
-
 /** Synthetic helper kinds pinned in a body's top or bottom strip. */
 export type BodyHelperKind = "exec" | "variables" | "output";
 
@@ -57,14 +51,13 @@ export type HelperFlowData = {
 };
 
 export type HarnessFlowData =
-  LeafFlowData | ContainerFlowData | HarnessBoundaryFlowData | HelperFlowData;
+  LeafFlowData | ContainerFlowData | HelperFlowData;
 
 export type LeafFlowNode = Node<LeafFlowData, "leaf">;
 export type ContainerFlowNode = Node<ContainerFlowData, "container">;
-export type HarnessBoundaryFlowNode = Node<HarnessBoundaryFlowData, "harness">;
 export type HelperFlowNode = Node<HelperFlowData, "helper">;
 export type HarnessFlowNode =
-  LeafFlowNode | ContainerFlowNode | HarnessBoundaryFlowNode | HelperFlowNode;
+  LeafFlowNode | ContainerFlowNode | HelperFlowNode;
 
 export type DataFlowEdgeData = { kind: "data" };
 export type ExecFlowEdgeData = { kind: "exec"; branch?: string };
