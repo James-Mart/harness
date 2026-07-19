@@ -32,6 +32,7 @@ describe("harnessToFlowNodes", () => {
     expect(nodes.map((node) => node.id)).toEqual([
       HARNESS_FLOW_NODE_ID,
       bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "exec"),
+      bodyHelperNodeId(HARNESS_FLOW_NODE_ID, "output"),
       "source",
       "loop",
       bodyHelperNodeId("loop", "exec"),

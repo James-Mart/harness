@@ -12,6 +12,7 @@ import type {
 } from "@/components/canvas/flowTypes";
 import {
   FLOW_LAYOUT,
+  bodyBottomStripOrigin,
   bodyChildrenOriginY,
   bodyHelperStripsHeight,
   bodyTopStripOrigin,
@@ -148,12 +149,15 @@ function wrapChildContentWithHelperStrips(
   };
 }
 
-/** Present a container/harness input as a Variables output (outer → inner). */
-function passThroughVariablesPort(port: Port): Port {
+/** Copy a port with a new direction (Variables outs / Output ins). */
+function portWithDirection(
+  port: Port,
+  direction: Port["direction"],
+): Port {
   return {
     id: port.id,
     name: port.name,
-    direction: "out",
+    direction,
     schema: port.schema,
   };
 }
@@ -176,9 +180,34 @@ export function variablesPortsForContainer(
     if (port.direction !== "in") continue;
     // Iterable feedstock drives `$currentItem`; it is not a pass-through.
     if (port.id === node.iterablePortId) continue;
-    ports.push(passThroughVariablesPort(port));
+    ports.push(portWithDirection(port, "out"));
   }
   return ports;
+}
+
+/**
+ * Input ports the Output helper surfaces for a port list. Payload outs only —
+ * `$currentItem` is a Variables source, never an Output sink.
+ */
+function outputPortsForPorts(ports: readonly Port[]): Port[] {
+  return ports
+    .filter(
+      (port) =>
+        port.direction === "out" && port.id !== CURRENT_ITEM_PORT_ID,
+    )
+    .map((port) => portWithDirection(port, "in"));
+}
+
+/** Payload outs a container surfaces on its Output helper (empty if none). */
+export function outputPortsForContainer(
+  node: Extract<HarnessNode, { kind: "container" }>,
+): Port[] {
+  return outputPortsForPorts(node.ports);
+}
+
+/** Payload outs the harness boundary surfaces on the canvas Output helper. */
+export function outputPortsForHarness(harness: Harness): Port[] {
+  return outputPortsForPorts(harness.boundary);
 }
 
 /** Outer chrome ports — body-internal sources (e.g. `$currentItem`) omitted. */
@@ -186,8 +215,8 @@ function outerContainerPorts(ports: readonly Port[]): Port[] {
   return ports.filter((port) => port.id !== CURRENT_ITEM_PORT_ID);
 }
 
-/** Size of a Variables helper (wide enough for `$currentItem · Type` labels). */
-function variablesHelperSize(): Size {
+/** Size of a Variables / Output helper (wide enough for port · Type labels). */
+function dataHelperSize(): Size {
   return {
     width: FLOW_LAYOUT.leafWidth,
     height: FLOW_LAYOUT.helperNodeHeight,
@@ -200,8 +229,23 @@ function topStripMinWidth(hasVariables: boolean): number {
   return (
     FLOW_LAYOUT.helperNodeWidth +
     FLOW_LAYOUT.childGap +
-    variablesHelperSize().width
+    dataHelperSize().width
   );
+}
+
+/** Min body width covering top-strip helpers and an optional Output helper. */
+function bodyStripMinWidth(hasVariables: boolean, hasOutput: boolean): number {
+  return Math.max(
+    topStripMinWidth(hasVariables),
+    hasOutput ? dataHelperSize().width : 0,
+  );
+}
+
+/** Reserved bottom-strip height when an Output helper is present. */
+function bottomStripHeight(hasOutput: boolean): number {
+  return hasOutput
+    ? FLOW_LAYOUT.helperNodeHeight
+    : FLOW_LAYOUT.bodyBottomStripHeight;
 }
 
 /** Append / fan-out index — enough for edges and leaf/container mapping. */
@@ -374,12 +418,13 @@ function measureBodyContent(
   axis: "vertical" | "horizontal",
   headerHeight: number,
   stripMinWidth: number = FLOW_LAYOUT.helperNodeWidth,
+  bottomStrip: number = FLOW_LAYOUT.bodyBottomStripHeight,
 ): Size {
   return wrapWithHeaderChrome(
     wrapChildContentWithHelperStrips(
       aggregateChildContent(childSizes, axis),
       FLOW_LAYOUT.bodyTopStripHeight,
-      FLOW_LAYOUT.bodyBottomStripHeight,
+      bottomStrip,
       stripMinWidth,
     ),
     headerHeight,
@@ -411,33 +456,46 @@ function measureTree(
     measureTree(harness, child, sizes, index),
   );
   const hasVariables = variablesPortsForContainer(node).length > 0;
+  const hasOutput = outputPortsForContainer(node).length > 0;
   const size = measureBodyContent(
     childSizes,
     "vertical",
     containerChromeHeaderHeight({
       hasAdvisoryCues: cuesFor(node.id, index).length > 0,
     }),
-    topStripMinWidth(hasVariables),
+    bodyStripMinWidth(hasVariables, hasOutput),
+    bottomStripHeight(hasOutput),
   );
   sizes.set(node.id, size);
   return size;
 }
 
 /** Size of the harness shell wrapping auto-layout top-level nodes L→R. */
-function measureHarnessShell(rootSizes: Size[]): Size {
+function measureHarnessShell(
+  rootSizes: Size[],
+  hasOutput: boolean = false,
+): Size {
   return measureBodyContent(
     rootSizes,
     "horizontal",
     FLOW_LAYOUT.harnessHeaderHeight,
+    bodyStripMinWidth(false, hasOutput),
+    bottomStripHeight(hasOutput),
   );
 }
 
-/** Grow the shell so a manually-placed root stays inside the boundary frame. */
+/**
+ * Grow the shell so a manually-placed root stays inside the boundary frame,
+ * including room for an optional bottom Output strip beneath it.
+ */
 function expandShellForPlacement(
   shell: Size,
   position: NodePosition,
   size: Size,
+  bottomStrip: number = FLOW_LAYOUT.bodyBottomStripHeight,
 ): Size {
+  const bottomReserve =
+    bottomStrip > 0 ? FLOW_LAYOUT.childGap + bottomStrip : 0;
   return {
     width: Math.max(
       shell.width,
@@ -445,7 +503,10 @@ function expandShellForPlacement(
     ),
     height: Math.max(
       shell.height,
-      position.y + size.height + FLOW_LAYOUT.containerPadY,
+      position.y +
+        size.height +
+        bottomReserve +
+        FLOW_LAYOUT.containerPadY,
     ),
   };
 }
@@ -528,7 +589,7 @@ function toVariablesHelperFlowNode(
   ports: readonly Port[],
 ): HelperFlowNode {
   const origin = bodyTopStripOrigin(headerHeight);
-  const size = variablesHelperSize();
+  const size = dataHelperSize();
   return toHelperFlowNode({
     bodyId,
     kind: "variables",
@@ -539,6 +600,27 @@ function toVariablesHelperFlowNode(
       y: origin.y,
     },
     size,
+  });
+}
+
+function toOutputHelperFlowNode(
+  bodyId: string,
+  headerHeight: number,
+  childContentHeight: number,
+  ports: readonly Port[],
+): HelperFlowNode {
+  return toHelperFlowNode({
+    bodyId,
+    kind: "output",
+    title: "Output",
+    ports,
+    position: bodyBottomStripOrigin(
+      headerHeight,
+      childContentHeight,
+      FLOW_LAYOUT.bodyTopStripHeight,
+      FLOW_LAYOUT.helperNodeHeight,
+    ),
+    size: dataHelperSize(),
   });
 }
 
@@ -585,6 +667,7 @@ function positionSubtree(
   });
   const partition = partitionContainerExecOuts(harness, node.id);
   const variablesPorts = variablesPortsForContainer(node);
+  const outputPorts = outputPortsForContainer(node);
   out.push(
     toContainerFlowNode(
       harness,
@@ -602,12 +685,17 @@ function positionSubtree(
   if (variablesPorts.length > 0) {
     out.push(toVariablesHelperFlowNode(node.id, headerHeight, variablesPorts));
   }
-  let y = bodyChildrenOriginY(headerHeight);
-  for (const child of kids) {
+  const childSizes = kids.map((child) => {
     const childSize = sizes.get(child.id);
     if (!childSize) {
       throw new Error(`Missing measured size for child ${child.id}`);
     }
+    return childSize;
+  });
+  let y = bodyChildrenOriginY(headerHeight);
+  for (let i = 0; i < kids.length; i++) {
+    const child = kids[i]!;
+    const childSize = childSizes[i]!;
     positionSubtree(
       harness,
       child,
@@ -618,6 +706,16 @@ function positionSubtree(
       out,
     );
     y += childSize.height + FLOW_LAYOUT.childGap;
+  }
+  if (outputPorts.length > 0) {
+    out.push(
+      toOutputHelperFlowNode(
+        node.id,
+        headerHeight,
+        aggregateChildContent(childSizes, "vertical").height,
+        outputPorts,
+      ),
+    );
   }
 }
 
@@ -643,14 +741,69 @@ export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
   // Manually-placed roots use their persisted position; the rest flow L→R.
   const placedRoots = roots.filter((root) => root.position !== undefined);
   const autoRoots = roots.filter((root) => root.position === undefined);
+  const harnessOutputPorts = outputPortsForHarness(harness);
+  const hasHarnessOutput = harnessOutputPorts.length > 0;
+  const childrenOriginY = bodyChildrenOriginY(FLOW_LAYOUT.harnessHeaderHeight);
 
-  let shellSize = measureHarnessShell(autoRoots.map((root) => sizeOf(root.id)));
+  // Auto-layout x advances only across auto roots so placed roots cannot
+  // steal slots and overlap L→R siblings.
+  const autoPositionById = new Map<NodeId, NodePosition>();
+  let x = FLOW_LAYOUT.containerPadX;
+  for (const root of autoRoots) {
+    autoPositionById.set(root.id, { x, y: childrenOriginY });
+    x += sizeOf(root.id).width + FLOW_LAYOUT.topLevelGap;
+  }
+
+  const positionOf = (root: HarnessNode): NodePosition => {
+    const position = root.position ?? autoPositionById.get(root.id);
+    if (!position) {
+      throw new Error(`Missing layout position for root ${root.id}`);
+    }
+    return position;
+  };
+
+  // Child-stack height for bottom-strip placement: auto row aggregate, then
+  // raised by any placed root that extends further down.
+  let childStackHeight = aggregateChildContent(
+    autoRoots.map((root) => sizeOf(root.id)),
+    "horizontal",
+  ).height;
+  for (const root of roots) {
+    const position = positionOf(root);
+    const rootSize = sizeOf(root.id);
+    childStackHeight = Math.max(
+      childStackHeight,
+      position.y + rootSize.height - childrenOriginY,
+    );
+  }
+
+  let shellSize = measureHarnessShell(
+    autoRoots.map((root) => sizeOf(root.id)),
+    hasHarnessOutput,
+  );
+  const harnessBottomStrip = bottomStripHeight(hasHarnessOutput);
   for (const root of placedRoots) {
     shellSize = expandShellForPlacement(
       shellSize,
       root.position!,
       sizeOf(root.id),
+      harnessBottomStrip,
     );
+  }
+  // Keep the shell tall enough for the explicit child stack + Output strip.
+  if (hasHarnessOutput) {
+    const neededHeight =
+      FLOW_LAYOUT.harnessHeaderHeight +
+      FLOW_LAYOUT.containerPadY * 2 +
+      bodyHelperStripsHeight(
+        FLOW_LAYOUT.bodyTopStripHeight,
+        FLOW_LAYOUT.helperNodeHeight,
+      ) +
+      childStackHeight;
+    shellSize = {
+      ...shellSize,
+      height: Math.max(shellSize.height, neededHeight),
+    };
   }
 
   const out: HarnessFlowNode[] = [
@@ -662,26 +815,22 @@ export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
         .bodyEntryBranches,
     ),
   ];
-
-  // Auto-layout x advances only across auto roots so placed roots cannot
-  // steal slots and overlap L→R siblings.
-  const autoPositionById = new Map<NodeId, NodePosition>();
-  let x = FLOW_LAYOUT.containerPadX;
-  const y = bodyChildrenOriginY(FLOW_LAYOUT.harnessHeaderHeight);
-  for (const root of autoRoots) {
-    autoPositionById.set(root.id, { x, y });
-    x += sizeOf(root.id).width + FLOW_LAYOUT.topLevelGap;
+  if (hasHarnessOutput) {
+    out.push(
+      toOutputHelperFlowNode(
+        HARNESS_FLOW_NODE_ID,
+        FLOW_LAYOUT.harnessHeaderHeight,
+        childStackHeight,
+        harnessOutputPorts,
+      ),
+    );
   }
 
   for (const root of roots) {
-    const position = root.position ?? autoPositionById.get(root.id);
-    if (!position) {
-      throw new Error(`Missing layout position for root ${root.id}`);
-    }
     positionSubtree(
       harness,
       root,
-      position,
+      positionOf(root),
       HARNESS_FLOW_NODE_ID,
       sizes,
       index,
@@ -692,24 +841,39 @@ export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
   return out;
 }
 
-/** Port ids each container surfaces on its Variables helper (empty if none). */
-function variablesPortIdsByContainer(
-  harness: Harness,
-): Map<NodeId, ReadonlySet<string>> {
-  const byContainer = new Map<NodeId, ReadonlySet<string>>();
+/** Port-id sets each body surfaces on Variables / Output helpers. */
+function helperPortIdsByBody(harness: Harness): {
+  variables: Map<NodeId, ReadonlySet<string>>;
+  output: Map<string, ReadonlySet<string>>;
+} {
+  const variables = new Map<NodeId, ReadonlySet<string>>();
+  const output = new Map<string, ReadonlySet<string>>();
   for (const node of harness.nodes) {
     if (node.kind !== "container") continue;
-    const ports = variablesPortsForContainer(node);
-    if (ports.length === 0) continue;
-    byContainer.set(node.id, new Set(ports.map((port) => port.id)));
+    const variablesPorts = variablesPortsForContainer(node);
+    if (variablesPorts.length > 0) {
+      variables.set(node.id, new Set(variablesPorts.map((port) => port.id)));
+    }
+    const outputPorts = outputPortsForContainer(node);
+    if (outputPorts.length > 0) {
+      output.set(node.id, new Set(outputPorts.map((port) => port.id)));
+    }
   }
-  return byContainer;
+  const harnessPorts = outputPortsForHarness(harness);
+  if (harnessPorts.length > 0) {
+    output.set(
+      HARNESS_FLOW_NODE_ID,
+      new Set(harnessPorts.map((port) => port.id)),
+    );
+  }
+  return { variables, output };
 }
 
 /** React Flow edges for harness data wires, exec control, and fan-out append. */
 export function harnessToFlowEdges(harness: Harness): HarnessFlowEdge[] {
   const index = buildAppendIndex(harness);
-  const variablesPortsByContainer = variablesPortIdsByContainer(harness);
+  const { variables: variablesPortsByContainer, output: outputPortsByBody } =
+    helperPortIdsByBody(harness);
 
   const dataEdges: HarnessFlowEdge[] = harness.edges
     .filter((edge) => edge.kind === "data")
@@ -725,11 +889,17 @@ export function harnessToFlowEdges(harness: Harness): HarnessFlowEdge[] {
         ?.has(edge.from.port)
         ? bodyHelperNodeId(edge.from.node, "variables")
         : edge.from.node;
+      // Child → container/harness payload out → Output helper sink.
+      const target = outputPortsByBody
+        .get(edge.to.node)
+        ?.has(edge.to.port)
+        ? bodyHelperNodeId(edge.to.node, "output")
+        : edge.to.node;
       return {
         id: dataEdgeId(edge.from, edge.to),
         source,
         sourceHandle: edge.from.port,
-        target: edge.to.node,
+        target,
         targetHandle: edge.to.port,
         type: "default",
         style: { stroke, strokeWidth: 2 },
