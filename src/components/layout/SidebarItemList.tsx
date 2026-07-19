@@ -22,6 +22,32 @@ export function SidebarItemList({
   );
 }
 
+type SidebarItemRowProps = {
+  children: ReactNode;
+  /** Optional trailing control (e.g. delete); enables flex layout. */
+  action?: ReactNode;
+  className?: string;
+};
+
+/** List row for a `SidebarItemButton`, optionally with a trailing action. */
+export function SidebarItemRow({
+  children,
+  action,
+  className,
+}: SidebarItemRowProps) {
+  return (
+    <li
+      className={cn(
+        action !== undefined ? "flex items-center gap-0.5" : undefined,
+        className,
+      )}
+    >
+      {children}
+      {action}
+    </li>
+  );
+}
+
 type SidebarItemButtonProps = ComponentProps<typeof Button>;
 
 /** Full-width sidebar row button used inside `SidebarItemList` items. */

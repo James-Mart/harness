@@ -3,6 +3,7 @@ import { EditorSidebar } from "@/components/layout/EditorSidebar";
 import {
   SidebarItemButton,
   SidebarItemList,
+  SidebarItemRow,
 } from "@/components/layout/SidebarItemList";
 import { setCatalogDragData } from "@/authoring/catalogDrag";
 import type { PaletteGroup } from "@/components/palette/catalogPalette";
@@ -37,7 +38,7 @@ export function NodePalette({
           </h3>
           <SidebarItemList>
             {group.items.map((item) => (
-              <li key={item.type}>
+              <SidebarItemRow key={item.type}>
                 <SidebarItemButton
                   variant="outline"
                   draggable={canAdd}
@@ -56,7 +57,7 @@ export function NodePalette({
                 >
                   {item.title}
                 </SidebarItemButton>
-              </li>
+              </SidebarItemRow>
             ))}
           </SidebarItemList>
         </section>

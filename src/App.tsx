@@ -14,7 +14,9 @@ function App() {
   return (
     <div className="flex h-screen flex-col">
       <header className="flex items-center border-b px-4 py-2">
-        <h1 className="text-lg font-semibold">Harness</h1>
+        <h1 className="text-lg font-semibold" data-testid="harness-title">
+          {selectedHarness?.title ?? "Harness"}
+        </h1>
       </header>
       <div className="flex min-h-0 flex-1">
         {showHarnessSidebar ? (
@@ -23,6 +25,8 @@ function App() {
             selectedId={workspace.selectedId}
             onSelect={workspace.selectHarness}
             onAdd={workspace.addHarness}
+            onRename={workspace.renameHarness}
+            onDelete={workspace.deleteHarness}
           />
         ) : null}
         <main className="min-h-0 flex-1">
@@ -32,7 +36,14 @@ function App() {
               harness={selectedHarness}
               onHarnessChange={workspace.updateHarness}
             />
-          ) : null}
+          ) : (
+            <div
+              className="text-muted-foreground flex h-full items-center justify-center text-sm"
+              data-testid="harness-empty-state"
+            >
+              No harness selected
+            </div>
+          )}
         </main>
       </div>
     </div>
