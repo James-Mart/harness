@@ -76,6 +76,42 @@ export function reparentNode(
   return changed ? { ...harness, nodes } : harness;
 }
 
+function withTopLevelPosition(
+  entry: Node,
+  position: NodePosition | undefined,
+): Node {
+  // Nested nodes never carry a top-level placement.
+  if (entry.parentId !== undefined) {
+    return stripPosition(entry);
+  }
+  if (position === undefined) {
+    return stripPosition(entry);
+  }
+  if (entry.position?.x === position.x && entry.position?.y === position.y) {
+    return entry;
+  }
+  return { ...entry, position };
+}
+
+/**
+ * Persist or clear top-level canvas positions in one pass. Nested targets are
+ * cleared (position is top-level-only). No-ops return the same harness.
+ */
+export function setNodePositions(
+  harness: Harness,
+  positions: ReadonlyMap<NodeId, NodePosition | undefined>,
+): Harness {
+  if (positions.size === 0) return harness;
+  let changed = false;
+  const nodes = harness.nodes.map((entry) => {
+    if (!positions.has(entry.id)) return entry;
+    const next = withTopLevelPosition(entry, positions.get(entry.id));
+    if (next !== entry) changed = true;
+    return next;
+  });
+  return changed ? { ...harness, nodes } : harness;
+}
+
 /**
  * Persist or clear a node's top-level canvas position. No-ops when the node
  * is nested (position is top-level-only) or the value is unchanged.
@@ -85,25 +121,5 @@ export function setNodePosition(
   nodeId: NodeId,
   position: NodePosition | undefined,
 ): Harness {
-  let changed = false;
-  const nodes = harness.nodes.map((entry) => {
-    if (entry.id !== nodeId) return entry;
-    // Nested nodes never carry a top-level placement.
-    if (entry.parentId !== undefined) {
-      const cleared = stripPosition(entry);
-      if (cleared !== entry) changed = true;
-      return cleared;
-    }
-    if (position === undefined) {
-      const cleared = stripPosition(entry);
-      if (cleared !== entry) changed = true;
-      return cleared;
-    }
-    if (entry.position?.x === position.x && entry.position?.y === position.y) {
-      return entry;
-    }
-    changed = true;
-    return { ...entry, position };
-  });
-  return changed ? { ...harness, nodes } : harness;
+  return setNodePositions(harness, new Map([[nodeId, position]]));
 }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { resolveContainmentParent } from "@/authoring/containment";
+import { harnessRootFlowNodes } from "@/authoring/flowGeometry";
+import { persistHarnessRootLayout } from "@/authoring/layoutPersistence";
 import { harnessToFlowNodes } from "@/components/canvas/harnessToFlow";
 import { isAncestorOf } from "@/model/ancestry";
 import {
@@ -8,6 +10,7 @@ import {
   createBaseSeedHarness,
   reparentNode,
   setNodePosition,
+  setNodePositions,
 } from "@/model";
 import { isUnder } from "@/model/reparent";
 import {
@@ -99,6 +102,61 @@ describe("reparentNode", () => {
         (node) => node.id === "source",
       )?.position,
     ).toBeUndefined();
+  });
+
+  it("setNodePositions writes multiple roots in one pass", () => {
+    const next = setNodePositions(
+      createBaseSeedHarness(),
+      new Map([
+        ["source", { x: 10, y: 20 }],
+        ["loop", { x: 300, y: 40 }],
+      ]),
+    );
+    expect(next.nodes.find((node) => node.id === "source")?.position).toEqual({
+      x: 10,
+      y: 20,
+    });
+    expect(next.nodes.find((node) => node.id === "loop")?.position).toEqual({
+      x: 300,
+      y: 40,
+    });
+    expect(
+      next.nodes.find((node) => node.id === "worker")?.position,
+    ).toBeUndefined();
+  });
+});
+
+describe("persistHarnessRootLayout", () => {
+  it("freezes every harness-root position from flow geometry", () => {
+    const geometry = harnessToFlowNodes(createBaseSeedHarness());
+    const roots = harnessRootFlowNodes(geometry);
+    expect(roots.map((node) => node.id).sort()).toEqual(["loop", "source"]);
+
+    const next = persistHarnessRootLayout(
+      createBaseSeedHarness(),
+      geometry,
+      "source",
+    );
+    for (const root of roots) {
+      expect(next.nodes.find((node) => node.id === root.id)?.position).toEqual(
+        root.position,
+      );
+    }
+  });
+
+  it("includes an un-nesting node whose draft parent is still a container", () => {
+    // Fixture keeps worker.parentId === "loop" while resolving a top-level drop.
+    const draft = unnestWorkerOntoHarnessNodes();
+    const harness = reparentNode(createBaseSeedHarness(), "worker", undefined);
+    const next = persistHarnessRootLayout(harness, draft, "worker");
+    expect(next.nodes.find((node) => node.id === "worker")?.position).toEqual({
+      x: -180,
+      y: 40,
+    });
+    expect(next.nodes.find((node) => node.id === "loop")?.position).toEqual({
+      x: 200,
+      y: 40,
+    });
   });
 });
 

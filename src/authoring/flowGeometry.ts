@@ -1,3 +1,4 @@
+import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import type { HarnessFlowNode } from "@/components/canvas/flowTypes";
 
 /** Geometry fields used to resolve absolute flow-space rects. */
@@ -12,6 +13,13 @@ export type FlowGeometryNode = Pick<
   | "measured"
   | "style"
 >;
+
+/** Flow nodes that sit directly under the harness boundary (model roots). */
+export function harnessRootFlowNodes<T extends FlowGeometryNode>(
+  nodes: readonly T[],
+): T[] {
+  return nodes.filter((node) => node.parentId === HARNESS_FLOW_NODE_ID);
+}
 
 /** Absolute (flow-coordinate) bounding box of a rendered node. */
 export type FlowRect = { x: number; y: number; width: number; height: number };

@@ -7,9 +7,16 @@ import {
   layoutInvariantViolations,
 } from "@/authoring/layoutInvariants";
 import { harnessToFlowNodes } from "@/components/canvas/harnessToFlow";
-import { createBaseSeedHarness } from "@/model";
+import {
+  createBaseSeedHarness,
+  createBranchingSeedHarness,
+  createEunomioSeedHarness,
+  createTrackerSeedHarness,
+  createWorkPoolSeedHarness,
+} from "@/model";
 import {
   DRAG_PIPELINE_SOURCE_ID,
+  DRAG_PIPELINE_STATIONARY_ID,
   beginDrag,
   dragFrame,
   measuredFromStyle,
@@ -17,6 +24,14 @@ import {
   simulateDragStop,
   useDragPipeline,
 } from "@/test/dragPipelineFixtures";
+
+const SEED_HARNESSES = [
+  createBaseSeedHarness,
+  createBranchingSeedHarness,
+  createWorkPoolSeedHarness,
+  createTrackerSeedHarness,
+  createEunomioSeedHarness,
+] as const;
 
 function geo(
   id: string,
@@ -89,15 +104,20 @@ describe("layoutInvariantViolations", () => {
 });
 
 describe("layout stability (drag)", () => {
-  it("holds for the base seed before any drag", () => {
-    assertLayoutInvariants(harnessToFlowNodes(createBaseSeedHarness()));
-  });
+  it.each(SEED_HARNESSES.map((create) => [create.name, create] as const))(
+    "holds for %s before any drag",
+    (_name, create) => {
+      assertLayoutInvariants(harnessToFlowNodes(create()));
+    },
+  );
 
   it("keeps sibling roots non-overlapping after dragging the first top-level node down", () => {
     const { result } = renderHook(() =>
       useDragPipeline({ commitHarness: true }),
     );
     const dragged = nodeById(result, DRAG_PIPELINE_SOURCE_ID);
+    const stationary = nodeById(result, DRAG_PIPELINE_STATIONARY_ID);
+    const stationaryBefore = { ...stationary.position };
     const dimensions = measuredFromStyle(dragged);
     const drop = {
       x: dragged.position.x,
@@ -110,9 +130,53 @@ describe("layout stability (drag)", () => {
     });
     simulateDragStop(result);
 
-    // Desired: persist the drag without re-packing other roots into the drop.
-    // On current main, only the dragged root is placed, so auto roots collapse
-    // left and overlap it.
+    const harness = result.current.harness;
+    expect(
+      harness.nodes.find((node) => node.id === DRAG_PIPELINE_SOURCE_ID)
+        ?.position,
+    ).toEqual(drop);
+    expect(
+      harness.nodes.find((node) => node.id === DRAG_PIPELINE_STATIONARY_ID)
+        ?.position,
+    ).toEqual(stationaryBefore);
+
+    assertLayoutInvariants(harnessToFlowNodes(harness));
+  });
+
+  it("still reparents into a container when the drop lands inside one", () => {
+    const { result } = renderHook(() =>
+      useDragPipeline({ commitHarness: true }),
+    );
+    const dragged = nodeById(result, DRAG_PIPELINE_SOURCE_ID);
+    const loop = nodeById(result, DRAG_PIPELINE_STATIONARY_ID);
+    const dimensions = measuredFromStyle(dragged);
+    // Center of source inside loop body (harness-relative coords).
+    const drop = {
+      x: loop.position.x + 40,
+      y: loop.position.y + 40,
+    };
+
+    beginDrag(result);
+    act(() => {
+      result.current.onNodesChange(dragFrame(drop, dimensions));
+    });
+    simulateDragStop(result);
+
+    const source = result.current.harness.nodes.find(
+      (node) => node.id === DRAG_PIPELINE_SOURCE_ID,
+    );
+    expect(source?.parentId).toBe(DRAG_PIPELINE_STATIONARY_ID);
+    expect(source?.position).toBeUndefined();
+    expect(
+      result.current.harness.nodes.find(
+        (node) => node.id === DRAG_PIPELINE_STATIONARY_ID,
+      )?.position,
+    ).toBeUndefined();
+    expect(
+      harnessToFlowNodes(result.current.harness).find(
+        (node) => node.id === DRAG_PIPELINE_SOURCE_ID,
+      )?.parentId,
+    ).toBe(DRAG_PIPELINE_STATIONARY_ID);
     assertLayoutInvariants(harnessToFlowNodes(result.current.harness));
   });
 });
