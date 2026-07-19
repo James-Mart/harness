@@ -8,6 +8,7 @@ import {
 import { afterEach, describe, expect, it } from "vitest";
 
 import App from "@/App";
+import { EUNOMIO_HARNESS_ID, TRACKER_HARNESS_ID } from "@/model";
 
 describe("multi-harness workspace UI", () => {
   afterEach(() => {
@@ -22,14 +23,14 @@ describe("multi-harness workspace UI", () => {
     fireEvent.change(title, { target: { value: "Edited Epic" } });
     expect(title).toHaveValue("Edited Epic");
 
-    fireEvent.click(screen.getByTestId("harness-seed-eunomio"));
+    fireEvent.click(screen.getByTestId(`harness-item-${EUNOMIO_HARNESS_ID}`));
     expect(
       within(screen.getByTestId("editor-canvas")).getByTestId(
         "flow-node-partition",
       ),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId("harness-seed-tracker"));
+    fireEvent.click(screen.getByTestId(`harness-item-${TRACKER_HARNESS_ID}`));
     fireEvent.click(screen.getByTestId("flow-node-epic"));
     expect(screen.getByTestId("inspector-field-title")).toHaveValue(
       "Edited Epic",
