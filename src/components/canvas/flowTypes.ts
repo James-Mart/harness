@@ -44,14 +44,31 @@ export type HarnessBoundaryFlowData = {
   ports: Port[];
 };
 
+/** Synthetic helper kinds pinned in a body's top or bottom strip. */
+export type BodyHelperKind = "exec" | "variables" | "output";
+
+/** Rendering-only body helper (Exec / Variables / Output). */
+export type HelperFlowData = {
+  kind: BodyHelperKind;
+  title: string;
+  ports: readonly Port[];
+};
+
 export type HarnessFlowData =
-  LeafFlowData | ContainerFlowData | HarnessBoundaryFlowData;
+  | LeafFlowData
+  | ContainerFlowData
+  | HarnessBoundaryFlowData
+  | HelperFlowData;
 
 export type LeafFlowNode = Node<LeafFlowData, "leaf">;
 export type ContainerFlowNode = Node<ContainerFlowData, "container">;
 export type HarnessBoundaryFlowNode = Node<HarnessBoundaryFlowData, "harness">;
+export type HelperFlowNode = Node<HelperFlowData, "helper">;
 export type HarnessFlowNode =
-  LeafFlowNode | ContainerFlowNode | HarnessBoundaryFlowNode;
+  | LeafFlowNode
+  | ContainerFlowNode
+  | HarnessBoundaryFlowNode
+  | HelperFlowNode;
 
 export type DataFlowEdgeData = { kind: "data" };
 export type ExecFlowEdgeData = { kind: "exec"; branch?: string };

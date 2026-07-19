@@ -7,6 +7,7 @@ import {
 import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import {
   FLOW_LAYOUT,
+  bodyChildrenOriginY,
   containerChromeHeaderHeight,
 } from "@/components/canvas/layoutTokens";
 import { appendEdgeId } from "@/model";
@@ -64,7 +65,7 @@ describe("harnessToFlowNodes", () => {
     expect(source.data.ports.map((port) => port.id)).toEqual(["items"]);
     expect(source.position).toEqual({
       x: FLOW_LAYOUT.containerPadX,
-      y: FLOW_LAYOUT.harnessHeaderHeight + FLOW_LAYOUT.containerPadY,
+      y: bodyChildrenOriginY(FLOW_LAYOUT.harnessHeaderHeight),
     });
 
     expect(loop?.type).toBe("container");
@@ -103,7 +104,7 @@ describe("harnessToFlowNodes", () => {
     ]);
     expect(worker.position).toEqual({
       x: FLOW_LAYOUT.containerPadX,
-      y: containerChromeHeaderHeight() + FLOW_LAYOUT.containerPadY,
+      y: bodyChildrenOriginY(containerChromeHeaderHeight()),
     });
     expect(worker.style?.height).toBeGreaterThan(FLOW_LAYOUT.leafMinHeight - 1);
   });

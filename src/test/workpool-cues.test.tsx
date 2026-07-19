@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { harnessToFlowNodes } from "@/components/canvas/harnessToFlow";
 import {
   FLOW_LAYOUT,
+  bodyChildrenOriginY,
   containerChromeHeaderHeight,
 } from "@/components/canvas/layoutTokens";
 import { EditorLayout } from "@/components/layout/EditorLayout";
@@ -59,7 +60,7 @@ describe("work-pool advisory cue mapping + render", () => {
     expect(Number(noFixpoint.style?.height) - Number(pool.style?.height)).toBe(
       FLOW_LAYOUT.advisoryCueRowHeight,
     );
-    expect(fanOut?.position.y).toBe(cueHeader + FLOW_LAYOUT.containerPadY);
+    expect(fanOut?.position.y).toBe(bodyChildrenOriginY(cueHeader));
   });
 
   it("renders advisory cues on offending containers", () => {

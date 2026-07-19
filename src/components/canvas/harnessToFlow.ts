@@ -2,14 +2,18 @@ import { MarkerType } from "@xyflow/react";
 
 import { HARNESS_FLOW_NODE_ID } from "@/components/canvas/flowIds";
 import type {
+  BodyHelperKind,
   ContainerFlowNode,
   HarnessBoundaryFlowNode,
   HarnessFlowEdge,
   HarnessFlowNode,
+  HelperFlowNode,
   LeafFlowNode,
 } from "@/components/canvas/flowTypes";
 import {
   FLOW_LAYOUT,
+  bodyChildrenOriginY,
+  bodyHelperStripsHeight,
   containerChromeHeaderHeight,
   leafHeightForPortCount,
 } from "@/components/canvas/layoutTokens";
@@ -38,7 +42,72 @@ import { wiringAdvisoryCues } from "@/model/validationCues";
 import { dataEdgeId, findPort } from "@/model/wiring";
 import { workPoolAdvisoryCues } from "@/model/workpoolGraph";
 
+export type { BodyHelperKind, HelperFlowData, HelperFlowNode } from "@/components/canvas/flowTypes";
+export {
+  bodyBottomStripOrigin,
+  bodyTopStripOrigin,
+} from "@/components/canvas/layoutTokens";
+
 type Size = { width: number; height: number };
+
+/** Stable React Flow id for a synthetic body-helper node. */
+export function bodyHelperNodeId(
+  bodyId: string,
+  kind: BodyHelperKind,
+): string {
+  return `${bodyId}/$${kind}`;
+}
+
+/**
+ * Synthetic, non-interactive helper node for a body strip. Not draggable,
+ * deletable, or selectable (and never reparented — always `parentId = bodyId`).
+ */
+export function toHelperFlowNode(args: {
+  bodyId: string;
+  kind: BodyHelperKind;
+  title: string;
+  ports?: readonly Port[];
+  position: NodePosition;
+  size?: Size;
+}): HelperFlowNode {
+  const size = args.size ?? {
+    width: FLOW_LAYOUT.helperNodeWidth,
+    height: FLOW_LAYOUT.helperNodeHeight,
+  };
+  return {
+    id: bodyHelperNodeId(args.bodyId, args.kind),
+    type: "helper",
+    position: args.position,
+    parentId: args.bodyId,
+    draggable: false,
+    deletable: false,
+    selectable: false,
+    data: {
+      kind: args.kind,
+      title: args.title,
+      ports: args.ports ?? [],
+    },
+    style: { width: size.width, height: size.height },
+  };
+}
+
+/** Grow child-stack content by reserved top/bottom helper strips. */
+function wrapChildContentWithHelperStrips(
+  childContent: Size,
+  topStripHeight: number = FLOW_LAYOUT.bodyTopStripHeight,
+  bottomStripHeight: number = FLOW_LAYOUT.bodyBottomStripHeight,
+): Size {
+  const stripActive = topStripHeight > 0 || bottomStripHeight > 0;
+  return {
+    width: Math.max(
+      childContent.width,
+      stripActive ? FLOW_LAYOUT.helperNodeWidth : 0,
+    ),
+    height:
+      childContent.height +
+      bodyHelperStripsHeight(topStripHeight, bottomStripHeight),
+  };
+}
 
 /** Append / fan-out index — enough for edges and leaf/container mapping. */
 type AppendIndex = {
@@ -145,6 +214,18 @@ function wrapWithHeaderChrome(content: Size, headerHeight: number): Size {
   };
 }
 
+/** Aggregate children, reserve helper strips, then wrap with header chrome. */
+function measureBodyContent(
+  childSizes: Size[],
+  axis: "vertical" | "horizontal",
+  headerHeight: number,
+): Size {
+  return wrapWithHeaderChrome(
+    wrapChildContentWithHelperStrips(aggregateChildContent(childSizes, axis)),
+    headerHeight,
+  );
+}
+
 /** Bottom-up size cache — one walk, reused by the position pass. */
 function measureTree(
   harness: Harness,
@@ -169,8 +250,9 @@ function measureTree(
   const childSizes = kids.map((child) =>
     measureTree(harness, child, sizes, index),
   );
-  const size = wrapWithHeaderChrome(
-    aggregateChildContent(childSizes, "vertical"),
+  const size = measureBodyContent(
+    childSizes,
+    "vertical",
     containerChromeHeaderHeight({
       hasAdvisoryCues: cuesFor(node.id, index).length > 0,
     }),
@@ -181,8 +263,9 @@ function measureTree(
 
 /** Size of the harness shell wrapping auto-layout top-level nodes L→R. */
 function measureHarnessShell(rootSizes: Size[]): Size {
-  return wrapWithHeaderChrome(
-    aggregateChildContent(rootSizes, "horizontal"),
+  return measureBodyContent(
+    rootSizes,
+    "horizontal",
     FLOW_LAYOUT.harnessHeaderHeight,
   );
 }
@@ -319,7 +402,7 @@ function positionSubtree(
   const headerHeight = containerChromeHeaderHeight({
     hasAdvisoryCues: cuesFor(node.id, index).length > 0,
   });
-  let y = headerHeight + FLOW_LAYOUT.containerPadY;
+  let y = bodyChildrenOriginY(headerHeight);
   for (const child of kids) {
     const childSize = sizes.get(child.id);
     if (!childSize) {
@@ -378,7 +461,7 @@ export function harnessToFlowNodes(harness: Harness): HarnessFlowNode[] {
   // steal slots and overlap L→R siblings.
   const autoPositionById = new Map<NodeId, NodePosition>();
   let x = FLOW_LAYOUT.containerPadX;
-  const y = FLOW_LAYOUT.harnessHeaderHeight + FLOW_LAYOUT.containerPadY;
+  const y = bodyChildrenOriginY(FLOW_LAYOUT.harnessHeaderHeight);
   for (const root of autoRoots) {
     autoPositionById.set(root.id, { x, y });
     x += sizeOf(root.id).width + FLOW_LAYOUT.topLevelGap;

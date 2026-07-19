@@ -1,5 +1,8 @@
 import type { CSSProperties } from "react";
 
+/** Shared helper-node / top-strip height — one token for reservation and render. */
+const HELPER_NODE_HEIGHT = 40;
+
 /** Shared geometry for harness→flow layout and node chrome. */
 export const FLOW_LAYOUT = {
   leafWidth: 196,
@@ -26,7 +29,79 @@ export const FLOW_LAYOUT = {
   containerHeaderPortPadY: 8,
   childGap: 12,
   topLevelGap: 48,
+  /** Default size of a synthetic body-helper node in a strip. */
+  helperNodeWidth: 120,
+  helperNodeHeight: HELPER_NODE_HEIGHT,
+  /**
+   * Reserved height of the body top strip (Exec / Variables). Same token as
+   * `helperNodeHeight` so reservation and rendered helpers cannot desync.
+   */
+  bodyTopStripHeight: HELPER_NODE_HEIGHT,
+  /**
+   * Reserved height of the body bottom strip (Output helper). Zero until an
+   * Output helper is present; pass `helperNodeHeight` into strip helpers then.
+   */
+  bodyBottomStripHeight: 0,
 } as const;
+
+/**
+ * Extra body height for top/bottom helper strips (including the gap that
+ * separates each non-empty strip from the child stack).
+ */
+export function bodyHelperStripsHeight(
+  topStripHeight: number = FLOW_LAYOUT.bodyTopStripHeight,
+  bottomStripHeight: number = FLOW_LAYOUT.bodyBottomStripHeight,
+): number {
+  let height = 0;
+  if (topStripHeight > 0) height += topStripHeight + FLOW_LAYOUT.childGap;
+  if (bottomStripHeight > 0) height += bottomStripHeight + FLOW_LAYOUT.childGap;
+  return height;
+}
+
+/**
+ * Body-local Y where children begin — below the chrome header, top pad, and
+ * reserved top helper strip.
+ */
+export function bodyChildrenOriginY(
+  headerHeight: number,
+  topStripHeight: number = FLOW_LAYOUT.bodyTopStripHeight,
+): number {
+  return (
+    headerHeight +
+    FLOW_LAYOUT.containerPadY +
+    (topStripHeight > 0 ? topStripHeight + FLOW_LAYOUT.childGap : 0)
+  );
+}
+
+/** Body-local origin of the top helper strip (below header + pad). */
+export function bodyTopStripOrigin(headerHeight: number): {
+  x: number;
+  y: number;
+} {
+  return {
+    x: FLOW_LAYOUT.containerPadX,
+    y: headerHeight + FLOW_LAYOUT.containerPadY,
+  };
+}
+
+/**
+ * Body-local origin of the bottom helper strip — after the child stack (and
+ * after the top strip reservation).
+ */
+export function bodyBottomStripOrigin(
+  headerHeight: number,
+  childContentHeight: number,
+  topStripHeight: number = FLOW_LAYOUT.bodyTopStripHeight,
+  bottomStripHeight: number = FLOW_LAYOUT.bodyBottomStripHeight,
+): { x: number; y: number } {
+  return {
+    x: FLOW_LAYOUT.containerPadX,
+    y:
+      bodyChildrenOriginY(headerHeight, topStripHeight) +
+      childContentHeight +
+      (bottomStripHeight > 0 ? FLOW_LAYOUT.childGap : 0),
+  };
+}
 
 export type LeafLayoutOptions = {
   hasFanOutMarker?: boolean;
