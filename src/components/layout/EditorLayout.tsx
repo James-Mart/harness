@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import type {
   Connection,
   Edge as FlowEdge,
@@ -44,13 +51,18 @@ import {
 import type { RunState } from "@/sim";
 
 type EditorLayoutProps = {
-  /** Override the default base seed (used by branching render tests). */
+  /**
+   * Controlled harness (workspace is canonical). When set, edits go only
+   * through `onHarnessChange` — no internal harness copy.
+   */
+  harness?: Harness;
+  /** Uncontrolled seed (tests). Ignored when `harness` is set. */
   initialHarness?: Harness;
   /** Seed canvas node selection (tests / controlled demos). */
   initialSelectedNodeIds?: string[];
   /** Seed canvas edge selection (tests / controlled demos). */
   initialSelectedEdgeIds?: string[];
-  /** Observes harness state (tests / demos). */
+  /** Harness updates (required for controlled; optional observer when uncontrolled). */
   onHarnessChange?: (harness: Harness) => void;
   /** Observes Edit/Run mode (tests / demos). */
   onModeChange?: (mode: EditorMode) => void;
@@ -59,6 +71,7 @@ type EditorLayoutProps = {
 };
 
 export function EditorLayout({
+  harness: controlledHarness,
   initialHarness,
   initialSelectedNodeIds = [],
   initialSelectedEdgeIds = [],
@@ -66,13 +79,32 @@ export function EditorLayout({
   onModeChange,
   onRunStateChange,
 }: EditorLayoutProps = {}) {
-  const [harness, setHarness] = useState(
+  const [uncontrolledHarness, setUncontrolledHarness] = useState(
     () => initialHarness ?? createBaseSeedHarness(),
+  );
+  const isControlled = controlledHarness !== undefined;
+  const harness = isControlled ? controlledHarness : uncontrolledHarness;
+
+  const setHarness = useCallback<Dispatch<SetStateAction<Harness>>>(
+    (action) => {
+      if (isControlled) {
+        const current = controlledHarness;
+        const next = typeof action === "function" ? action(current) : action;
+        onHarnessChange?.(next);
+        return;
+      }
+      setUncontrolledHarness((current) => {
+        const next = typeof action === "function" ? action(current) : action;
+        return next;
+      });
+    },
+    [controlledHarness, isControlled, onHarnessChange],
   );
 
   useEffect(() => {
-    onHarnessChange?.(harness);
-  }, [harness, onHarnessChange]);
+    if (isControlled) return;
+    onHarnessChange?.(uncontrolledHarness);
+  }, [isControlled, uncontrolledHarness, onHarnessChange]);
 
   const {
     mode,

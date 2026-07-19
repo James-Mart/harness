@@ -1,61 +1,51 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
-import {
-  createHarnessForSeed,
-  readHarnessBootstrap,
-  type HarnessSeedKey,
-} from "@/app/harnessBootstrap";
-import { Button } from "@/components/ui/button";
+import { readHarnessBootstrap } from "@/app/harnessBootstrap";
+import { useHarnessWorkspace } from "@/app/useHarnessWorkspace";
 import { EditorLayout } from "@/components/layout/EditorLayout";
+import { HarnessSidebar } from "@/components/layout/HarnessSidebar";
 
 function App() {
   const bootstrap = useMemo(() => readHarnessBootstrap(), []);
-  const [seedKey, setSeedKey] = useState<HarnessSeedKey>(bootstrap.seedKey);
-  const harness = useMemo(
-    () => bootstrap.demoHarness ?? createHarnessForSeed(seedKey),
-    [bootstrap.demoHarness, seedKey],
-  );
+  const workspace = useHarnessWorkspace(bootstrap);
+  const selectedHarness = workspace.selectedHarness;
+  const showHarnessSidebar = bootstrap.demoHarness === undefined;
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex items-center justify-between border-b px-4 py-2">
-        <h1 className="text-lg font-semibold">Harness</h1>
-        {bootstrap.demoHarness === undefined ? (
-          <div
-            className="inline-flex rounded-lg border p-0.5"
-            role="group"
-            aria-label="Harness seed"
-            data-testid="harness-toggle"
-          >
-            <Button
-              type="button"
-              size="sm"
-              variant={seedKey === "tracker" ? "default" : "ghost"}
-              data-testid="harness-seed-tracker"
-              aria-pressed={seedKey === "tracker"}
-              onClick={() => setSeedKey("tracker")}
-            >
-              Tracker
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={seedKey === "eunomio" ? "default" : "ghost"}
-              data-testid="harness-seed-eunomio"
-              aria-pressed={seedKey === "eunomio"}
-              onClick={() => setSeedKey("eunomio")}
-            >
-              Eunomio
-            </Button>
-          </div>
-        ) : null}
+      <header className="flex items-center border-b px-4 py-2">
+        <h1 className="text-lg font-semibold" data-testid="harness-title">
+          {selectedHarness?.title ?? "Harness"}
+        </h1>
       </header>
-      <main className="min-h-0 flex-1">
-        <EditorLayout
-          key={bootstrap.demoHarness?.id ?? seedKey}
-          initialHarness={harness}
-        />
-      </main>
+      <div className="flex min-h-0 flex-1">
+        {showHarnessSidebar ? (
+          <HarnessSidebar
+            harnesses={workspace.harnesses}
+            selectedId={workspace.selectedId}
+            onSelect={workspace.selectHarness}
+            onAdd={workspace.addHarness}
+            onRename={workspace.renameHarness}
+            onDelete={workspace.deleteHarness}
+          />
+        ) : null}
+        <main className="min-h-0 flex-1">
+          {selectedHarness !== null ? (
+            <EditorLayout
+              key={selectedHarness.id}
+              harness={selectedHarness}
+              onHarnessChange={workspace.updateHarness}
+            />
+          ) : (
+            <div
+              className="text-muted-foreground flex h-full items-center justify-center text-sm"
+              data-testid="harness-empty-state"
+            >
+              No harness selected
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,10 @@
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EditorSidebar } from "@/components/layout/EditorSidebar";
+import {
+  SidebarItemButton,
+  SidebarItemList,
+  SidebarItemRow,
+} from "@/components/layout/SidebarItemList";
 import { setCatalogDragData } from "@/authoring/catalogDrag";
 import type { PaletteGroup } from "@/components/palette/catalogPalette";
 import type { CatalogType } from "@/model/catalog";
@@ -32,16 +36,14 @@ export function NodePalette({
           <h3 className="text-muted-foreground mb-2 text-xs font-medium">
             {group.name}
           </h3>
-          <ul className="space-y-1">
+          <SidebarItemList>
             {group.items.map((item) => (
-              <li key={item.type}>
-                <Button
-                  type="button"
+              <SidebarItemRow key={item.type}>
+                <SidebarItemButton
                   variant="outline"
-                  size="sm"
                   draggable={canAdd}
                   disabled={!canAdd}
-                  className="w-full cursor-grab justify-start active:cursor-grabbing"
+                  className="cursor-grab active:cursor-grabbing"
                   data-catalog-type={item.type}
                   data-testid={`palette-item-${item.type}`}
                   onClick={() => {
@@ -54,10 +56,10 @@ export function NodePalette({
                   }}
                 >
                   {item.title}
-                </Button>
-              </li>
+                </SidebarItemButton>
+              </SidebarItemRow>
             ))}
-          </ul>
+          </SidebarItemList>
         </section>
       ))}
     </EditorSidebar>
