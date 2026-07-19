@@ -6,6 +6,8 @@ import {
   createWiringCueDemoHarness,
   createWorkPoolCueDemoHarness,
   createWorkPoolSeedHarness,
+  EUNOMIO_HARNESS_ID,
+  TRACKER_HARNESS_ID,
   type Harness,
 } from "@/model";
 
@@ -14,6 +16,12 @@ export type HarnessSeedKey = "tracker" | "eunomio";
 const HARNESS_SEEDS: Record<HarnessSeedKey, () => Harness> = {
   tracker: createTrackerSeedHarness,
   eunomio: createEunomioSeedHarness,
+};
+
+/** Stable harness ids for Tracker | Eunomio seeds. */
+export const HARNESS_SEED_IDS: Record<HarnessSeedKey, string> = {
+  tracker: TRACKER_HARNESS_ID,
+  eunomio: EUNOMIO_HARNESS_ID,
 };
 
 export type HarnessBootstrap = {
@@ -29,6 +37,11 @@ export type HarnessBootstrap = {
 /** Build the harness for a Tracker | Eunomio seed key. */
 export function createHarnessForSeed(seedKey: HarnessSeedKey): Harness {
   return HARNESS_SEEDS[seedKey]();
+}
+
+/** Resolve the stable id for a Tracker | Eunomio seed key. */
+export function harnessIdForSeed(seedKey: HarnessSeedKey): string {
+  return HARNESS_SEED_IDS[seedKey];
 }
 
 /**

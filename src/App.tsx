@@ -1,20 +1,18 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import {
-  createHarnessForSeed,
+  HARNESS_SEED_IDS,
   readHarnessBootstrap,
-  type HarnessSeedKey,
 } from "@/app/harnessBootstrap";
+import { useHarnessWorkspace } from "@/app/useHarnessWorkspace";
 import { Button } from "@/components/ui/button";
 import { EditorLayout } from "@/components/layout/EditorLayout";
 
 function App() {
   const bootstrap = useMemo(() => readHarnessBootstrap(), []);
-  const [seedKey, setSeedKey] = useState<HarnessSeedKey>(bootstrap.seedKey);
-  const harness = useMemo(
-    () => bootstrap.demoHarness ?? createHarnessForSeed(seedKey),
-    [bootstrap.demoHarness, seedKey],
-  );
+  const workspace = useHarnessWorkspace(bootstrap);
+  const selectedHarness = workspace.selectedHarness;
+  const selectedId = workspace.selectedId;
 
   return (
     <div className="flex h-screen flex-col">
@@ -30,20 +28,28 @@ function App() {
             <Button
               type="button"
               size="sm"
-              variant={seedKey === "tracker" ? "default" : "ghost"}
+              variant={
+                selectedId === HARNESS_SEED_IDS.tracker ? "default" : "ghost"
+              }
               data-testid="harness-seed-tracker"
-              aria-pressed={seedKey === "tracker"}
-              onClick={() => setSeedKey("tracker")}
+              aria-pressed={selectedId === HARNESS_SEED_IDS.tracker}
+              onClick={() =>
+                workspace.selectHarness(HARNESS_SEED_IDS.tracker)
+              }
             >
               Tracker
             </Button>
             <Button
               type="button"
               size="sm"
-              variant={seedKey === "eunomio" ? "default" : "ghost"}
+              variant={
+                selectedId === HARNESS_SEED_IDS.eunomio ? "default" : "ghost"
+              }
               data-testid="harness-seed-eunomio"
-              aria-pressed={seedKey === "eunomio"}
-              onClick={() => setSeedKey("eunomio")}
+              aria-pressed={selectedId === HARNESS_SEED_IDS.eunomio}
+              onClick={() =>
+                workspace.selectHarness(HARNESS_SEED_IDS.eunomio)
+              }
             >
               Eunomio
             </Button>
@@ -51,10 +57,13 @@ function App() {
         ) : null}
       </header>
       <main className="min-h-0 flex-1">
-        <EditorLayout
-          key={bootstrap.demoHarness?.id ?? seedKey}
-          initialHarness={harness}
-        />
+        {selectedHarness !== null ? (
+          <EditorLayout
+            key={selectedHarness.id}
+            harness={selectedHarness}
+            onHarnessChange={workspace.updateHarness}
+          />
+        ) : null}
       </main>
     </div>
   );
