@@ -101,7 +101,7 @@ export function EditorLayout({
   const {
     nodes: draftNodes,
     onNodeDragStart,
-    onNodesChange,
+    onNodesChange: onDragNodesChange,
     onNodeDragStop,
   } = useContainmentDragDraft(flowNodes, setHarness);
 
@@ -110,11 +110,13 @@ export function EditorLayout({
     edges,
     selectedNodeIds,
     selectedEdgeIds,
-    onSelectionChange,
+    onNodesChange,
+    onEdgesChange,
     clearDeletedFromSelection,
   } = useCanvasSelection(
     draftNodes,
     flowEdges,
+    onDragNodesChange,
     initialSelectedNodeIds,
     initialSelectedEdgeIds,
   );
@@ -263,11 +265,11 @@ export function EditorLayout({
             edges={edges}
             onInit={onFlowInit}
             onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
             onNodeDragStart={onNodeDragStart}
             onNodeDragStop={onNodeDragStop}
             onConnect={onConnect}
             isValidConnection={isValidConnection}
-            onSelectionChange={onSelectionChange}
             onNodesDelete={onNodesDelete}
             onEdgesDelete={onEdgesDelete}
             readOnly={readOnly}

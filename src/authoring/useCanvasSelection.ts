@@ -1,12 +1,46 @@
 import { useCallback, useMemo, useState } from "react";
-import type { Edge } from "@xyflow/react";
+import type { Edge, EdgeChange, NodeChange } from "@xyflow/react";
 
 import type { HarnessFlowNode } from "@/components/canvas/flowTypes";
-import type { CanvasSelection } from "@/components/canvas/HarnessCanvas";
 
 function sameIdList(a: readonly string[], b: readonly string[]): boolean {
   if (a.length !== b.length) return false;
   return a.every((id, index) => id === b[index]);
+}
+
+/** Apply RF `select` changes onto an id list, preserving survivor order. */
+export function applySelectChangesToIds(
+  current: readonly string[],
+  changes: readonly { id: string; selected: boolean }[],
+): string[] {
+  if (changes.length === 0) return current as string[];
+
+  const selected = new Set(current);
+  for (const change of changes) {
+    if (change.selected) selected.add(change.id);
+    else selected.delete(change.id);
+  }
+
+  const preserved = current.filter((id) => selected.has(id));
+  const preservedSet = new Set(preserved);
+  const added: string[] = [];
+  for (const change of changes) {
+    if (!change.selected || preservedSet.has(change.id)) continue;
+    if (added.includes(change.id)) continue;
+    added.push(change.id);
+  }
+  const next = [...preserved, ...added];
+  return sameIdList(current, next) ? (current as string[]) : next;
+}
+
+function selectChangesFrom(
+  changes: readonly { type: string; id?: string; selected?: boolean }[],
+): { id: string; selected: boolean }[] {
+  return changes.flatMap((change) =>
+    change.type === "select" && change.id !== undefined
+      ? [{ id: change.id, selected: !!change.selected }]
+      : [],
+  );
 }
 
 type Selectable = { id: string; selected?: boolean };
@@ -34,14 +68,21 @@ export function stampSelectedPreservingIdentity<T extends Selectable>(
   return changed ? next : items;
 }
 
+type DelegateOnNodesChange = (changes: NodeChange<HarnessFlowNode>[]) => void;
+
 /**
  * Controlled React Flow selection for nodes and edges. Stamps `selected`
- * flags and keeps state identity stable when RF re-emits the same selection
+ * flags and keeps state identity stable when the same selection re-applies
  * (avoids a controlled-selection setState loop).
+ *
+ * Owns click selection exclusively via RF `select` changes on the composed
+ * `onNodesChange` / `onEdgesChange` handlers. The drag-draft delegate still
+ * receives the full node change stream (idle draft ignores non-drag batches).
  */
 export function useCanvasSelection(
   flowNodes: HarnessFlowNode[],
   flowEdges: Edge[],
+  delegateOnNodesChange: DelegateOnNodesChange,
   initialSelectedNodeIds: readonly string[] = [],
   initialSelectedEdgeIds: readonly string[] = [],
 ): {
@@ -49,7 +90,8 @@ export function useCanvasSelection(
   edges: Edge[];
   selectedNodeIds: string[];
   selectedEdgeIds: string[];
-  onSelectionChange: (selection: CanvasSelection) => void;
+  onNodesChange: (changes: NodeChange<HarnessFlowNode>[]) => void;
+  onEdgesChange: (changes: EdgeChange[]) => void;
   clearDeletedFromSelection: (
     nodeIds: readonly string[],
     edgeIds: readonly string[],
@@ -71,12 +113,25 @@ export function useCanvasSelection(
     [flowEdges, selectedEdgeIds],
   );
 
-  const onSelectionChange = useCallback((selection: CanvasSelection) => {
-    setSelectedNodeIds((current) =>
-      sameIdList(current, selection.nodeIds) ? current : selection.nodeIds,
-    );
+  const onNodesChange = useCallback(
+    (changes: NodeChange<HarnessFlowNode>[]) => {
+      const selectChanges = selectChangesFrom(changes);
+      if (selectChanges.length > 0) {
+        setSelectedNodeIds((current) =>
+          applySelectChangesToIds(current, selectChanges),
+        );
+      }
+      delegateOnNodesChange(changes);
+    },
+    [delegateOnNodesChange],
+  );
+
+  const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+    // Structural edge edits are derived from harness wires; only fold select.
+    const selectChanges = selectChangesFrom(changes);
+    if (selectChanges.length === 0) return;
     setSelectedEdgeIds((current) =>
-      sameIdList(current, selection.edgeIds) ? current : selection.edgeIds,
+      applySelectChangesToIds(current, selectChanges),
     );
   }, []);
 
@@ -99,7 +154,8 @@ export function useCanvasSelection(
     edges,
     selectedNodeIds,
     selectedEdgeIds,
-    onSelectionChange,
+    onNodesChange,
+    onEdgesChange,
     clearDeletedFromSelection,
   };
 }

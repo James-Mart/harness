@@ -1,8 +1,32 @@
 import type { Edge } from "@xyflow/react";
 import { describe, expect, it } from "vitest";
 
-import { stampSelectedPreservingIdentity } from "@/authoring/useCanvasSelection";
+import {
+  applySelectChangesToIds,
+  stampSelectedPreservingIdentity,
+} from "@/authoring/useCanvasSelection";
 import type { HarnessFlowNode } from "@/components/canvas/flowTypes";
+
+describe("applySelectChangesToIds", () => {
+  it("adds and removes ids from a click-style select batch", () => {
+    expect(
+      applySelectChangesToIds(
+        ["a"],
+        [
+          { id: "a", selected: false },
+          { id: "b", selected: true },
+        ],
+      ),
+    ).toEqual(["b"]);
+  });
+
+  it("returns the same array reference when nothing changes", () => {
+    const current = ["a"];
+    expect(
+      applySelectChangesToIds(current, [{ id: "a", selected: true }]),
+    ).toBe(current);
+  });
+});
 
 describe("stampSelectedPreservingIdentity", () => {
   it("preserves node identity when the selected flag is unchanged", () => {

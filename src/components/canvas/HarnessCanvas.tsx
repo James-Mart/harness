@@ -4,6 +4,7 @@ import {
   Controls,
   ReactFlow,
   type Edge,
+  type EdgeChange,
   type IsValidConnection,
   type OnConnect,
   type OnEdgesDelete,
@@ -11,7 +12,6 @@ import {
   type OnNodeDrag,
   type OnNodesChange,
   type OnNodesDelete,
-  type OnSelectionChangeFunc,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -20,20 +20,15 @@ import { harnessNodeTypes } from "@/components/canvas/nodeTypes";
 import { RunOverlay } from "@/components/canvas/RunOverlay";
 import type { RunState } from "@/sim";
 
-export type CanvasSelection = {
-  nodeIds: string[];
-  edgeIds: string[];
-};
-
 type HarnessCanvasProps = {
   nodes: HarnessFlowNode[];
   edges: Edge[];
   onNodesChange?: OnNodesChange<HarnessFlowNode>;
+  onEdgesChange?: (changes: EdgeChange[]) => void;
   onNodeDragStart?: OnNodeDrag<HarnessFlowNode>;
   onNodeDragStop?: OnNodeDrag<HarnessFlowNode>;
   onConnect?: OnConnect;
   isValidConnection?: IsValidConnection;
-  onSelectionChange?: (selection: CanvasSelection) => void;
   onNodesDelete?: OnNodesDelete;
   onEdgesDelete?: OnEdgesDelete;
   onInit?: OnInit<HarnessFlowNode, Edge>;
@@ -47,27 +42,17 @@ export function HarnessCanvas({
   nodes,
   edges,
   onNodesChange,
+  onEdgesChange,
   onNodeDragStart,
   onNodeDragStop,
   onConnect,
   isValidConnection,
-  onSelectionChange,
   onNodesDelete,
   onEdgesDelete,
   onInit,
   readOnly = false,
   runState = null,
 }: HarnessCanvasProps) {
-  const handleSelectionChange: OnSelectionChangeFunc = ({
-    nodes: selectedNodes,
-    edges: selectedEdges,
-  }) => {
-    onSelectionChange?.({
-      nodeIds: selectedNodes.map((node) => node.id),
-      edgeIds: selectedEdges.map((edge) => edge.id),
-    });
-  };
-
   return (
     <ReactFlow
       className="h-full w-full"
@@ -78,12 +63,9 @@ export function HarnessCanvas({
       onNodesChange={readOnly ? undefined : onNodesChange}
       onNodeDragStart={readOnly ? undefined : onNodeDragStart}
       onNodeDragStop={readOnly ? undefined : onNodeDragStop}
-      onEdgesChange={() => {
-        /* Edges are derived from harness data wires / appendsTo. */
-      }}
+      onEdgesChange={readOnly ? undefined : onEdgesChange}
       onConnect={readOnly ? undefined : onConnect}
       isValidConnection={isValidConnection}
-      onSelectionChange={handleSelectionChange}
       onNodesDelete={readOnly ? undefined : onNodesDelete}
       onEdgesDelete={readOnly ? undefined : onEdgesDelete}
       deleteKeyCode={readOnly ? null : ["Backspace", "Delete"]}

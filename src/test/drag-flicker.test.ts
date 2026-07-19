@@ -13,23 +13,28 @@ import {
 import { createBaseSeedHarness } from "@/model";
 
 /**
- * Compose the state half of the Edit-mode drag path the way `EditorLayout`
- * feeds React Flow's controlled `nodes` prop: harness -> flow nodes ->
- * `useContainmentDragDraft` (ephemeral drag state) -> `useCanvasSelection`
- * (selection stamping). `useFlowPlacement` and the canvas view are omitted;
- * this test targets the draft + selection remap that the flicker lives in.
+ * Compose the state half of the Edit-mode path the way `EditorLayout` feeds
+ * React Flow: harness -> flow nodes -> `useContainmentDragDraft` ->
+ * `useCanvasSelection` (composed `onNodesChange` + selection stamping).
  */
 function useDragPipeline() {
   const [harness] = useState(() => createBaseSeedHarness());
   const flowNodes = useMemo(() => harnessToFlowNodes(harness), [harness]);
   const flowEdges = useMemo(() => harnessToFlowEdges(harness), [harness]);
 
-  const { nodes: draftNodes, onNodeDragStart, onNodesChange } =
-    useContainmentDragDraft(flowNodes, () => undefined);
+  const {
+    nodes: draftNodes,
+    onNodeDragStart,
+    onNodesChange: onDragNodesChange,
+  } = useContainmentDragDraft(flowNodes, () => undefined);
 
-  const { nodes } = useCanvasSelection(draftNodes, flowEdges);
+  const { nodes, selectedNodeIds, onNodesChange } = useCanvasSelection(
+    draftNodes,
+    flowEdges,
+    onDragNodesChange,
+  );
 
-  return { nodes, onNodeDragStart, onNodesChange };
+  return { nodes, selectedNodeIds, onNodeDragStart, onNodesChange };
 }
 
 const DRAGGED_ID = "source";
@@ -111,5 +116,21 @@ describe("Edit-mode drag white-flash regression (Red)", () => {
     // Reallocating every node object per frame churns RF's node internals.
     expect(stationaryFrame1).toBe(stationaryStart);
     expect(stationaryFrame2).toBe(stationaryStart);
+  });
+});
+
+describe("composed onNodesChange selection", () => {
+  it("stamps selected from a select change batch on the first pass", () => {
+    const { result } = renderHook(() => useDragPipeline());
+
+    act(() => {
+      result.current.onNodesChange([
+        { id: DRAGGED_ID, type: "select", selected: true },
+      ]);
+    });
+
+    expect(result.current.selectedNodeIds).toEqual([DRAGGED_ID]);
+    expect(nodeById(result, DRAGGED_ID).selected).toBe(true);
+    expect(nodeById(result, STATIONARY_ID).selected).toBeFalsy();
   });
 });
