@@ -87,3 +87,23 @@ export function flowNodeRects(
   }
   return rects;
 }
+
+/** Axis-aligned overlap (touching edges do not count). */
+export function rectsOverlap(a: FlowRect, b: FlowRect): boolean {
+  return (
+    a.x < b.x + b.width &&
+    b.x < a.x + a.width &&
+    a.y < b.y + b.height &&
+    b.y < a.y + a.height
+  );
+}
+
+/** True when `child` lies entirely inside `parent` (inclusive edges). */
+export function containsRect(parent: FlowRect, child: FlowRect): boolean {
+  return (
+    child.x >= parent.x &&
+    child.y >= parent.y &&
+    child.x + child.width <= parent.x + parent.width &&
+    child.y + child.height <= parent.y + parent.height
+  );
+}
